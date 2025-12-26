@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "target": "ESNext",
     "outDir": "./dist",
     "rootDir": "./src",
@@ -9,9 +11,9 @@
     "esModuleInterop": true,
     "allowJs": true,
     "declaration": true,
-    "allowImportingTsExtensions": true,
+    "allowImportingTsExtensions": false,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    "noEmit": false,
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
@@ -20,5 +22,8 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": [
+    "src"
+  ]
 }
