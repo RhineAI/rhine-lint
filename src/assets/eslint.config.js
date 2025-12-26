@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { includeIgnoreFile } from '@eslint/compat'
+// import { includeIgnoreFile } from '@eslint/compat'
 import css from '@eslint/css'
 import { FlatCompat } from '@eslint/eslintrc'
 import js from '@eslint/js'
@@ -13,14 +13,14 @@ import eslintConfigPrettier from 'eslint-config-prettier/flat'
 import { importX } from 'eslint-plugin-import-x'
 import unusedImports from 'eslint-plugin-unused-imports'
 import globals from 'globals'
-import tseslint, { ConfigArray } from 'typescript-eslint'
+import tseslint from 'typescript-eslint'
 
 const OPTIONS = {
   ENABLE_SCRIPT: true, // Set to enable typescript javascript file features
   ENABLE_TYPE_CHECKED: true, // Set to enable type features
   ENABLE_PROJECT_BASE_TYPE_CHECKED: false, // Set to enable project-based type features
   ENABLE_FRONTEND: true, // Set to enable JSX, React, Reacts Hooks, and other frontend features
-  ENABLE_NEXT: true, // Set to enable Next.js and other frontend features
+  ENABLE_NEXT: false, // Set to enable Next.js and other frontend features
   ENABLE_MARKDOWN: true, // Set to enable markdown file features
   ENABLE_JSON: true, // Set to enable json file features
   ENABLE_STYLESHEET: true, // Set to enable CSS, SCSS, SASS and other stylesheet features
@@ -30,16 +30,13 @@ const OPTIONS = {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const gitignorePath = path.resolve(__dirname, '.gitignore')
-
 const compat = new FlatCompat({
   baseDirectory: __dirname,
 })
 
 const globalConfig = defineConfig([
-  includeIgnoreFile(gitignorePath),
   {
-    ignores: ['bun.lock'],
+    ignores: ['bun.lock', '.rhine-lint-cache/**'],
   },
 ])
 
@@ -55,53 +52,53 @@ if (OPTIONS.ENABLE_SCRIPT && OPTIONS.ENABLE_TYPE_CHECKED) {
   tsConfig.push(
     ...(OPTIONS.ENABLE_PROJECT_BASE_TYPE_CHECKED
       ? [
-          {
-            ignores: ['eslint.config.ts'],
-          },
-          {
-            files: allScriptFiles,
-            languageOptions: {
-              parserOptions: {
-                projectService: true,
-                tsconfigRootDir: __dirname,
-              },
+        {
+          ignores: ['eslint.config.ts'],
+        },
+        {
+          files: allScriptFiles,
+          languageOptions: {
+            parserOptions: {
+              projectService: true,
+              tsconfigRootDir: __dirname,
             },
           },
-          {
-            ...tseslint.configs.strictTypeChecked[0],
-            files: allScriptFiles,
-          },
-          {
-            ...tseslint.configs.strictTypeChecked[1],
-            files: allTsFiles,
-          },
-          {
-            ...tseslint.configs.strictTypeChecked[2],
-            files: allScriptFiles,
-          },
-          {
-            ...tseslint.configs.stylisticTypeChecked[2],
-            files: allScriptFiles,
-          },
-        ]
+        },
+        {
+          ...tseslint.configs.strictTypeChecked[0],
+          files: allScriptFiles,
+        },
+        {
+          ...tseslint.configs.strictTypeChecked[1],
+          files: allTsFiles,
+        },
+        {
+          ...tseslint.configs.strictTypeChecked[2],
+          files: allScriptFiles,
+        },
+        {
+          ...tseslint.configs.stylisticTypeChecked[2],
+          files: allScriptFiles,
+        },
+      ]
       : [
-          {
-            ...tseslint.configs.strict[0],
-            files: allScriptFiles,
-          },
-          {
-            ...tseslint.configs.strict[1],
-            files: allTsFiles,
-          },
-          {
-            ...tseslint.configs.strict[2],
-            files: allScriptFiles,
-          },
-          {
-            ...tseslint.configs.stylistic[2],
-            files: allScriptFiles,
-          },
-        ]),
+        {
+          ...tseslint.configs.strict[0],
+          files: allScriptFiles,
+        },
+        {
+          ...tseslint.configs.strict[1],
+          files: allTsFiles,
+        },
+        {
+          ...tseslint.configs.strict[2],
+          files: allScriptFiles,
+        },
+        {
+          ...tseslint.configs.stylistic[2],
+          files: allScriptFiles,
+        },
+      ]),
   )
 }
 
@@ -291,8 +288,8 @@ const customConfig = defineConfig([
     files: allScriptFiles,
     rules: OPTIONS.ENABLE_FRONTEND
       ? {
-          'react-hooks/exhaustive-deps': 'error',
-        }
+        'react-hooks/exhaustive-deps': 'error',
+      }
       : {},
   },
   {
@@ -300,8 +297,8 @@ const customConfig = defineConfig([
     rules:
       OPTIONS.ENABLE_FRONTEND && OPTIONS.ENABLE_NEXT
         ? {
-            '@next/next/no-img-element': 'error',
-          }
+          '@next/next/no-img-element': 'error',
+        }
         : {},
   },
   {
