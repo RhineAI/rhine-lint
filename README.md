@@ -1,2 +1,2 @@
-# rhine-code-style
+# Rhine Code Style
 
