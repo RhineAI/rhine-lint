@@ -1,5 +1,5 @@
 {
-  "name": "rhine-code-style",
+  "name": "rhine-lint",
   "module": "index.ts",
   "type": "module",
   "main": "./dist/index.js",

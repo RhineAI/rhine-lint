@@ -1,2 +1,2 @@
-# Rhine Code Style
+# Rhine Lint
 
