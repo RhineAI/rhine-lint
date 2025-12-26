@@ -2,6 +2,8 @@
 
 内置 EsLint 与 Prettier 的代码风格包。可零配置直接使用 rl 命令。
 
+不建议在你的项目中，重复安装 eslint, prettier, typescript-eslint, 及各种插件包。
+
 ## Performance
 
 ```text
