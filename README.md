@@ -27,7 +27,7 @@ bun add -D rhine-lint
 
 --fix 是否修复
 
---type 指定项目类型
+--level 指定项目种类用于对应默认配置
 ```
 
 ## Config
