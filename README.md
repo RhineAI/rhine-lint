@@ -27,7 +27,7 @@ bun add -D rhine-lint
 
 --fix 是否修复
 
---level 指定项目种类用于对应默认配置
+--level 指定项目种类 (js | ts | frontend | nextjs). 默认 frontend.
 ```
 
 ## Config

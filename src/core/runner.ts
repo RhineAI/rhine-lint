@@ -24,6 +24,9 @@ export async function runCommand(command: string, args: string[], cwd: string): 
     });
 }
 
+const IS_BUN = typeof process.versions.bun !== "undefined";
+const EXECUTOR = IS_BUN ? "bunx" : "npx";
+
 export async function runEslint(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]) {
     logInfo("Running ESLint...");
     const args = [
@@ -33,13 +36,8 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
         ...(fix ? ["--fix"] : []),
     ];
 
-    // We use 'bunx' or just 'eslint' if strictly inside the project? 
-    // The requirement says "Run eslint ... pointing to temporary generated default file".
-    // We should assume 'eslint' is available in the environment (installed by rhine-lint or user).
-    // Using `bunx` is safer for finding the local binary.
-
     try {
-        await runCommand("bunx", args, cwd);
+        await runCommand(EXECUTOR, args, cwd);
     } catch (e) {
         logError("ESLint execution failed.", e);
         throw e;
@@ -56,7 +54,7 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
     ];
 
     try {
-        await runCommand("bunx", args, cwd);
+        await runCommand(EXECUTOR, args, cwd);
     } catch (e) {
         logError("Prettier execution failed.", e);
         throw e;

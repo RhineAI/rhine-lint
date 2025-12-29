@@ -67,7 +67,8 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
 
 export async function generateTempConfig(
     cwd: string,
-    userConfigResult: { config: Config, path?: string }
+    userConfigResult: { config: Config, path?: string },
+    cliLevel?: string
 ): Promise<{ eslintPath: string; prettierPath: string }> {
 
     const cachePath = path.join(cwd, CACHE_DIR);
@@ -103,7 +104,7 @@ export async function generateTempConfig(
 import { createJiti } from "${jitiUrl}";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import defaultOne from "${defaultEslintPath}";
+import createConfig from "${defaultEslintPath}";
 import { defu } from "${defuUrl}";
 ${compatUrl && hasGitignore ? `import { includeIgnoreFile } from "${compatUrl}";` : ''}
 
@@ -117,7 +118,17 @@ const userOne = loaded.default || loaded;
 ` : 'const userOne = {};'}
 
 const userEslint = userOne.eslint || {};
-const defaultEslint = defaultOne;
+const level = "${cliLevel || ''}" || userOne.level || "frontend";
+
+let overrides = {};
+switch (level) {
+  case "nextjs": overrides = { ENABLE_NEXT: true }; break;
+  case "frontend": overrides = { ENABLE_FRONTEND: true, ENABLE_NEXT: false }; break;
+  case "ts": overrides = { ENABLE_FRONTEND: false }; break;
+  case "js": overrides = { ENABLE_FRONTEND: false, ENABLE_TYPE_CHECKED: false }; break;
+}
+
+const defaultEslint = createConfig(overrides);
 
 let finalConfig;
 

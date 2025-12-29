@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createRequire } from 'module';
 // import cac from "cac";
 import { loadUserConfig, generateTempConfig, cleanup } from "./core/config.js";
@@ -14,6 +15,7 @@ cli
     .command("[...files]", "Lint files")
     .option("--fix", "Fix lint errors")
     .option("--config <path>", "Path to config file")
+    .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
     .action(async (files: string[], options: any) => {
         const cwd = process.cwd();
         // If files is empty, default to "."
@@ -28,7 +30,7 @@ cli
             const userConfigResult = await loadUserConfig(cwd);
 
             // 2. Generate Temp Configs
-            const temps = await generateTempConfig(cwd, userConfigResult);
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level);
 
             // 3. Run ESLint
             await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
