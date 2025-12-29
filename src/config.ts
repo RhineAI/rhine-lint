@@ -1,5 +1,6 @@
 export type Config = {
     type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+    cacheDir?: string,
     fix?: boolean,
     eslint?: {
         config?: [

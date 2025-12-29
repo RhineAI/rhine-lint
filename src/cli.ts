@@ -16,10 +16,12 @@ cli
     .option("--fix", "Fix lint errors")
     .option("--config <path>", "Path to config file")
     .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
+    .option("--cache-dir <dir>", "Custom temporary cache directory")
     .action(async (files: string[], options: any) => {
         const cwd = process.cwd();
         // If files is empty, default to "."
         const targetFiles = files.length > 0 ? files : ["."];
+        let usedCachePath: string | undefined;
 
         try {
             logInfo(`Starting Rhine Lint v${version}`);
@@ -37,7 +39,8 @@ cli
             console.log();
 
             // 2. Generate Temp Configs
-            const temps = await generateTempConfig(cwd, userConfigResult, options.level);
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir);
+            usedCachePath = temps.cachePath; // Save for cleanup
 
             // 3. Run ESLint
             const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
@@ -69,7 +72,9 @@ cli
             process.exit(1);
         } finally {
             // 5. Cleanup
-            await cleanup(cwd);
+            if (usedCachePath) {
+                await cleanup(usedCachePath);
+            }
         }
     });
 

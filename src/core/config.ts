@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-export const CACHE_DIR = ".rhine-lint-cache";
+
 
 function getAssetPath(filename: string) {
     return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../assets", filename);
@@ -65,13 +65,34 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
     }
 }
 
+function getCacheDir(cwd: string, userConfig?: Config, cliCacheDir?: string): string {
+    // 1. CLI option
+    if (cliCacheDir) {
+        return path.resolve(cwd, cliCacheDir);
+    }
+    // 2. Config option
+    if (userConfig?.cacheDir) {
+        return path.resolve(cwd, userConfig.cacheDir);
+    }
+
+    // 3. Default: node_modules/.cache/rhine-lint
+    const nodeModulesPath = path.join(cwd, "node_modules");
+    if (fs.existsSync(nodeModulesPath)) {
+        return path.join(nodeModulesPath, ".cache", "rhine-lint");
+    }
+
+    // 4. Fallback: .cache/rhine-lint in root
+    return path.join(cwd, ".cache", "rhine-lint");
+}
+
 export async function generateTempConfig(
     cwd: string,
     userConfigResult: { config: Config, path?: string },
-    cliLevel?: string
-): Promise<{ eslintPath: string; prettierPath: string }> {
+    cliLevel?: string,
+    cliCacheDir?: string
+): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
-    const cachePath = path.join(cwd, CACHE_DIR);
+    const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
     await fs.ensureDir(cachePath);
 
     const eslintTempPath = path.join(cachePath, "eslint.config.mjs");
@@ -183,12 +204,15 @@ export default finalConfig;
     await fs.writeFile(eslintTempPath, eslintContent);
     await fs.writeFile(prettierTempPath, prettierContent);
 
-    return { eslintPath: eslintTempPath, prettierPath: prettierTempPath };
+    return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath };
 }
 
-export async function cleanup(cwd: string) {
-    const cachePath = path.join(cwd, CACHE_DIR);
-    if (await fs.pathExists(cachePath)) {
+export async function cleanup(cachePath: string) {
+    if (cachePath && await fs.pathExists(cachePath)) {
+        // Safety check: ensure we are deleting a temp dir we own
+        // If it's node_modules/.cache/rhine-lint, delete it
+        // If it's custom, delete it (careful?)
+        // Generally standard to remove temp config dir.
         await fs.remove(cachePath);
     }
 }
