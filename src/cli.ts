@@ -33,14 +33,27 @@ cli
             const temps = await generateTempConfig(cwd, userConfigResult, options.level);
 
             // 3. Run ESLint
-            await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
+            const eslintSuccess = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
 
             // 4. Run Prettier
-            await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+            const prettierSuccess = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+
+            if (!eslintSuccess || !prettierSuccess) {
+                // Determine message based on failure
+                const parts = [];
+                if (!eslintSuccess) parts.push("ESLint found issues");
+                if (!prettierSuccess) parts.push("Prettier found issues");
+
+                // logError expects 2 arguments in utils/logger.ts (message, error), 
+                // but passing undefined as 2nd arg might cause issues in output depending on consola version
+                // Let's just pass the message, and update logic if needed
+                logError(`Linting completed with errors: ${parts.join(", ")}`);
+                process.exit(1);
+            }
 
             logSuccess("Linting completed successfully.");
         } catch (e) {
-            logError("Linting failed.", e);
+            logError("Unexpected error during linting.", e);
             process.exit(1);
         } finally {
             // 5. Cleanup

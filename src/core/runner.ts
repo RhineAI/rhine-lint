@@ -27,7 +27,7 @@ export async function runCommand(command: string, args: string[], cwd: string): 
 const IS_BUN = typeof process.versions.bun !== "undefined";
 const EXECUTOR = IS_BUN ? "bunx" : "npx";
 
-export async function runEslint(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]) {
+export async function runEslint(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]): Promise<boolean> {
     logInfo("Running ESLint...");
     const args = [
         "eslint",
@@ -38,13 +38,19 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
 
     try {
         await runCommand(EXECUTOR, args, cwd);
-    } catch (e) {
+        return true;
+    } catch (e: any) {
+        // Exit code 1 means lint errors found, which is 'normal' operation
+        if (e.message && e.message.includes("exit code 1")) {
+            return false;
+        }
+        // Other errors are actual failures
         logError("ESLint execution failed.", e);
         throw e;
     }
 }
 
-export async function runPrettier(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]) {
+export async function runPrettier(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]): Promise<boolean> {
     logInfo("Running Prettier...");
     const args = [
         "prettier",
@@ -55,7 +61,12 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
 
     try {
         await runCommand(EXECUTOR, args, cwd);
-    } catch (e) {
+        return true;
+    } catch (e: any) {
+        if (e.message && e.message.includes("exit code 1") || e.message.includes("exit code 2")) {
+            // Prettier exit code 1/2 usually means style issues found or warnings
+            return false;
+        }
         logError("Prettier execution failed.", e);
         throw e;
     }

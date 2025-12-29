@@ -23,5 +23,9 @@ export function logWarn(message: string) {
 }
 
 export function logError(message: string, error?: unknown) {
-    logger.error(message, error);
+    if (error) {
+        logger.error(message, error);
+    } else {
+        logger.error(message);
+    }
 }
