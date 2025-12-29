@@ -29,25 +29,37 @@ cli
             // but loadConfig from jiti handles discovery well.
             const userConfigResult = await loadUserConfig(cwd);
 
+            if (userConfigResult.path) {
+                logInfo(`Using config: ${userConfigResult.path}`);
+            } else {
+                logInfo("Using default configuration");
+            }
+            console.log();
+
             // 2. Generate Temp Configs
             const temps = await generateTempConfig(cwd, userConfigResult, options.level);
 
             // 3. Run ESLint
-            const eslintSuccess = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
+            const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
 
             // 4. Run Prettier
-            const prettierSuccess = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+            const prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
 
-            if (!eslintSuccess || !prettierSuccess) {
-                // Determine message based on failure
-                const parts = [];
-                if (!eslintSuccess) parts.push("ESLint found issues");
-                if (!prettierSuccess) parts.push("Prettier found issues");
+            console.log();
 
-                // logError expects 2 arguments in utils/logger.ts (message, error), 
-                // but passing undefined as 2nd arg might cause issues in output depending on consola version
-                // Let's just pass the message, and update logic if needed
-                logError(`Linting completed with errors: ${parts.join(", ")}`);
+            if (eslintResult || prettierResult) {
+                logError("Linting completed with issues:");
+                if (eslintResult) {
+                    logError(`ESLint: ${eslintResult}`);
+                } else {
+                    logSuccess(`ESLint: No issues found`);
+                }
+
+                if (prettierResult) {
+                    logError(`Prettier: ${prettierResult}`);
+                } else {
+                    logSuccess(`Prettier: No issues found`);
+                }
                 process.exit(1);
             }
 

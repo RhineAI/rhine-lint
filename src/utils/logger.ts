@@ -1,31 +1,35 @@
 import { createConsola } from "consola";
+import { colors } from "consola/utils";
+
+const { cyan, red, green, yellow } = colors;
+
+// Custom logger to satisfy "RL" prefix requirement
+const rLine = (colorFn: (str: string) => string, type: string, msg: string) => {
+    console.log(`${colorFn("RL")} ${msg}`);
+}
 
 export const logger = createConsola({
-    level: 3, // Info
-    formatOptions: {
-        columns: 80,
-        colors: true,
-        compact: false,
-        date: false,
-    },
+    level: 3,
 });
 
 export function logInfo(message: string) {
-    logger.info(message);
+    // Manually format to match requested style: "RL <message>"
+    console.log(`${cyan("RL")} ${message}`);
 }
 
 export function logSuccess(message: string) {
-    logger.success(message);
+    console.log(`${green("RL")} ${message}`);
 }
 
 export function logWarn(message: string) {
-    logger.warn(message);
+    console.log(`${yellow("RL")} ${message}`);
 }
 
 export function logError(message: string, error?: unknown) {
+    // For errors, we want red "RL"
     if (error) {
-        logger.error(message, error);
+        console.error(`${red("RL")} ${message}`, error);
     } else {
-        logger.error(message);
+        console.error(`${red("RL")} ${message}`);
     }
 }

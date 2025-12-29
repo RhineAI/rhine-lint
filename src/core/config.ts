@@ -43,7 +43,7 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
     }
 
     try {
-        logInfo(`Loading config from ${configPath}`);
+        // logInfo(`Loading config from ${configPath}`);
         const isJson = configPath.endsWith(".json");
         let loaded: any;
         if (isJson) {
