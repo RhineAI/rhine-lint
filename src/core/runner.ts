@@ -11,7 +11,7 @@ function stripAnsi(str: string) {
     return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
 
-export async function runCommandWithOutput(command: string, args: string[], cwd: string): Promise<string> {
+export async function runCommandWithOutput(command: string, args: string[], cwd: string): Promise<{ output: string, code: number }> {
     return new Promise((resolve, reject) => {
         logger.debug(`Executing: ${command} ${args.join(" ")}`);
         const proc = spawn(command, args, {
@@ -37,12 +37,11 @@ export async function runCommandWithOutput(command: string, args: string[], cwd:
         }
 
         proc.on("close", (code) => {
-            if (code === 0 || code === 1 || code === 2) {
-                // Resolve with output even on lint failure (exit code 1 or 2)
-                resolve(output);
-            } else {
-                reject(new Error(`Command failed with exit code ${code}`));
-            }
+            // Resolve all exit codes (even 1 or 2 or others) so we can parse output.
+            // But we might want to differentiate "crash" vs "lint failure".
+            // ESLint exit code 1 = user lint error. code 2 = config/crash error.
+            if (code === null) code = 1; // Default to error if null
+            resolve({ output, code });
         });
 
         proc.on("error", (err) => {
@@ -63,7 +62,7 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
     ];
 
     try {
-        const output = await runCommandWithOutput(EXECUTOR, args, cwd);
+        const { output, code } = await runCommandWithOutput(EXECUTOR, args, cwd);
 
         if (!output.endsWith('\n')) {
             console.log();
@@ -87,6 +86,11 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
             return "Issues found";
         }
 
+        // Key Fix: If exit code is non-zero and we haven't found a "summary" above, it's a crash or unparsed error.
+        if (code !== 0) {
+            return `Process failed with exit code ${code}`;
+        }
+
         return null;
     } catch (e) {
         logError("ESLint execution failed.", e);
@@ -105,7 +109,7 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
     ];
 
     try {
-        const output = await runCommandWithOutput(EXECUTOR, args, cwd);
+        const { output, code } = await runCommandWithOutput(EXECUTOR, args, cwd);
 
         if (!output.endsWith('\n')) {
             console.log();
@@ -122,6 +126,13 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
             if (cleanOutput.includes("[warn]")) {
                 return "Style issues found";
             }
+        }
+
+        // Prettier specific: exit code 2 usually means error/crash. code 1 (in check mode) means unformatted.
+        if (code !== 0) {
+            if (fix && code !== 0) return `Process failed with exit code ${code}`;
+            // In check mode code 1 is covered above usually, but if fallback:
+            return "Style issues found";
         }
 
         return null;
