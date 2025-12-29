@@ -45,6 +45,8 @@ cli
             // 3. Run ESLint
             const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
 
+            console.log();
+
             // 4. Run Prettier
             const prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
 

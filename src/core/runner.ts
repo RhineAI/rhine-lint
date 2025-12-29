@@ -64,6 +64,11 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
 
     try {
         const output = await runCommandWithOutput(EXECUTOR, args, cwd);
+
+        if (!output.endsWith('\n')) {
+            console.log();
+        }
+
         const cleanOutput = stripAnsi(output);
 
         // Try to match standard ESLint summary: "✖ 5 problems (5 errors, 0 warnings)"
@@ -101,6 +106,11 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
 
     try {
         const output = await runCommandWithOutput(EXECUTOR, args, cwd);
+
+        if (!output.endsWith('\n')) {
+            console.log();
+        }
+
         const cleanOutput = stripAnsi(output);
 
         if (!fix) {
