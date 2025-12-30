@@ -1,8 +1,20 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// import { includeIgnoreFile } from '@eslint/compat'
+import nextPlugin from '@next/eslint-plugin-next'
+import reactPlugin from 'eslint-plugin-react';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import { fixupConfigRules } from '@eslint/compat'
+
 import css from '@eslint/css'
+
+// ... skipped standard imports ...
+
+// Removed Patch Mock - No longer needed as we don't use eslint-config-next
+
+// ...
+
+
 import { FlatCompat } from '@eslint/eslintrc'
 import js from '@eslint/js'
 import json from '@eslint/json'
@@ -180,12 +192,49 @@ export default function createConfig(overrides = {}) {
   if (OPTIONS.ENABLE_FRONTEND) {
     if (OPTIONS.ENABLE_NEXT) {
       frontendConfig.push(
-        ...compat.config({
-          extends: ['next/core-web-vitals', 'next/typescript'],
-        }),
+        {
+          plugins: {
+            '@next/next': nextPlugin,
+            // Next.js projects need React plugins too!
+            'react': reactPlugin,
+            'react-hooks': reactHooksPlugin,
+          },
+          settings: {
+            react: {
+              version: "detect"
+            }
+          },
+          rules: {
+            ...nextPlugin.configs.recommended.rules,
+            ...nextPlugin.configs['core-web-vitals'].rules,
+            // We also want standard React/Hooks rules in Next.js
+            ...reactPlugin.configs.recommended.rules,
+            ...reactHooksPlugin.configs.recommended.rules,
+            "react/react-in-jsx-scope": "off",
+            "react/prop-types": "off"
+          }
+        }
       )
     } else {
-      frontendConfig.push(...compat.extends('plugin:react/recommended', 'plugin:react-hooks/recommended'))
+      frontendConfig.push(
+        {
+          plugins: {
+            'react': reactPlugin,
+            'react-hooks': reactHooksPlugin,
+          },
+          settings: {
+            react: {
+              version: "detect"
+            }
+          },
+          rules: {
+            ...reactPlugin.configs.recommended.rules,
+            ...reactHooksPlugin.configs.recommended.rules,
+            "react/react-in-jsx-scope": "off",
+            "react/prop-types": "off"
+          }
+        }
+      )
     }
     for (const nextConfigElement of frontendConfig) {
       nextConfigElement.files ??= allScriptFiles
