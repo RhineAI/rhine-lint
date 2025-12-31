@@ -296,6 +296,31 @@ Rhine Lint 根据 `level` 参数加载不同的规则集：
 - **`frontend`** (默认): 前端 React 项目。包含 `ts` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
 - **`nextjs`**: Next.js 项目。包含 `frontend` 级别所有规则，加上 `@next/eslint-plugin-next` 的 Core Web Vitals 等规则。
 
+## Trigger Fix when Save
+
+### Jetbrains IDE (Webstorm, IDEA, PyCharm, ...)
+
+1. 打开 `Settings` -> `Tools` -> `File Watchers`
+2. 点击 `+` 创建一个文件监听器
+3. 选择 `<unknown>` 模板
+4. 输入以下配置并保存
+```
+Name: Rhine Lint Quick Fix
+File Type: Any
+Program: $ProjectFileDir$/node_modules/.bin/rl
+Arguments: "$FilePath$" --fix --disable-eslint
+Output paths to refresh: $FilePath$
+Working directory: $ProjectFileDir$
+Show console: Never
+```
+5. 选中新的配置 点击复制按钮 复制一份
+6. 修改其中的以下配置并保存
+```
+Name: Rhine Lint Fix
+Arguments: "$FilePath$" --fix --no-project-type-check
+```
+7. 点击 `OK` 保存
+
 ## 技术实现与原理 Implementation Insights
 
 本章节详细阐述 **Rhine Lint** 的内部工作机制。如果你希望为本项目贡献代码，或者想深度定制功能，可以通过以下内容快速上手。
