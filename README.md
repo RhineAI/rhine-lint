@@ -46,6 +46,9 @@ yarn add -D rhine-lint
 安装完成后，你可以直接使用 `rl` 命令：
 
 ```bash
+# 查看版本
+rl --version
+
 # 检查当前目录下所有文件 (默认 lint + check format)
 rl
 
@@ -322,30 +325,78 @@ Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集。
 
 ## Trigger Fix when Save
 
-### Jetbrains IDE (Webstorm, IDEA, PyCharm, ...)
+### VS Code (Cursor, Antigravity, ...)
 
-1. 打开 `Settings` -> `Tools` -> `File Watchers`
-2. 点击 `+` 创建一个文件监听器
-3. 选择 `<unknown>` 模板
-4. 输入以下配置并保存
+通过 [Run on Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave) 插件实现保存时自动修复。
+
+1. 安装插件：`emeraldwalk.RunOnSave`
+2. 在 `.vscode/settings.json` 中添加：
+
+```json
+{
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.(js|jsx|ts|tsx|css|scss|md|json)$",
+        "cmd": "${workspaceFolder}/node_modules/.bin/rl \"${file}\" --fix --only-prettier"
+      },
+      {
+        "match": "\\.(js|jsx|ts|tsx)$",
+        "cmd": "${workspaceFolder}/node_modules/.bin/rl \"${file}\" --fix --no-project-type-check"
+      }
+    ]
+  }
+}
 ```
-Name: Rhine Lint Quick Fix
-File Type: Any
-Program: $ProjectFileDir$/node_modules/.bin/rl
-Arguments: "$FilePath$" --fix --only-prettier
-Output paths to refresh: $FilePath$
-Working directory: $ProjectFileDir$
-Show console: Never
+
+3. 关闭 VS Code 内置的格式化功能以避免冲突：
+
+```json
+{
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {}
+}
 ```
-5. 选中新的配置 点击复制按钮 复制一份
-6. 修改其中的以下配置并保存
-```
-Name: Rhine Lint Fix
-Arguments: "$FilePath$" --fix --no-project-type-check
-```
-7. 点击 `OK` 保存
-8. 打开 `Settings` -> `Tools` -> `Actions on Save`
-9. 关闭所有其他关于代码格式化规范化的选项以避免功能冲突。（如 Reformat, EsLint, Prettier, ...）
+
+### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
+
+通过 File Watchers 实现保存时自动修复。需要创建两个监听器：Quick Fix（仅格式化）和 Full Fix（完整检查）。
+
+#### 步骤一：创建 File Watcher
+
+1. 打开 `Settings` → `Tools` → `File Watchers`
+2. 点击 `+` → 选择 `<custom>` 模板
+
+#### 步骤二：配置 Quick Fix（快速格式化）
+
+| 配置项 | 值 |
+|--------|-----|
+| Name | `Rhine Lint Quick Fix` |
+| File type | `Any` |
+| Program | `$ProjectFileDir$/node_modules/.bin/rl` |
+| Arguments | `"$FilePath$" --fix --only-prettier` |
+| Output paths to refresh | `$FilePath$` |
+| Working directory | `$ProjectFileDir$` |
+
+在 `Advanced Options` 中取消勾选 `Auto-save edited files to trigger the watcher`。
+
+#### 步骤三：配置 Full Fix（完整修复）
+
+1. 选中刚创建的 `Rhine Lint Quick Fix`，点击复制按钮
+2. 修改以下配置：
+
+| 配置项 | 值 |
+|--------|-----|
+| Name | `Rhine Lint Fix` |
+| Arguments | `"$FilePath$" --fix --no-project-type-check` |
+
+#### 步骤四：禁用冲突功能
+
+打开 `Settings` → `Tools` → `Actions on Save`，关闭以下选项以避免冲突：
+- Reformat code
+- Optimize imports
+- Run eslint --fix
+- Run Prettier
 
 ## 技术实现与原理 Implementation Insights
 
