@@ -4,7 +4,7 @@ import { createRequire } from 'module';
 import path from "node:path";
 import { loadUserConfig, generateTempConfig, cleanup } from "./core/config.js";
 import { runEslint, runPrettier } from "./core/runner.js";
-import { logError, logSuccess, logInfo } from "./utils/logger.js";
+import { logError, logSuccess, logInfo, logTime } from "./utils/logger.js";
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
@@ -22,12 +22,18 @@ cli
     .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
     .option("--no-ignore", "Disable all ignore rules (including .gitignore)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
+    .option("--time", "Show elapsed time for each phase")
     .option("--debug", "Enable debug mode")
     .action(async (files: string[], options: any) => {
         const cwd = process.cwd();
         // If files is empty, default to "."
         const targetFiles = files.length > 0 ? files : ["."];
         let usedCachePath: string | undefined;
+
+        // 计时功能：从 CLI 选项或配置文件获取
+        let showTime = options.time ?? false;
+        const startTotal = Date.now();
+        let startPhase = startTotal;
 
         try {
             logInfo(`Starting Rhine Lint v${version}`);
@@ -36,6 +42,11 @@ cli
             // Note: We currently auto-detect config. explicit --config path support in loadUserConfig could be added if needed,
             // but loadConfig from jiti handles discovery well.
             const userConfigResult = await loadUserConfig(cwd);
+
+            // 从配置文件读取 time 选项（CLI 优先）
+            if (options.time === undefined && userConfigResult.config.time !== undefined) {
+                showTime = userConfigResult.config.time;
+            }
 
             if (userConfigResult.path) {
                 // Show relative path if config is inside project
@@ -59,13 +70,30 @@ cli
             const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore);
             usedCachePath = temps.cachePath; // Save for cleanup
 
+            // 计时：第一阶段（准备阶段）
+            if (showTime) {
+                logTime("Preparation", Date.now() - startPhase);
+                startPhase = Date.now();
+            }
+
             // 3. Run ESLint
             const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
+
+            // 计时：第二阶段（ESLint）
+            if (showTime) {
+                logTime("ESLint", Date.now() - startPhase);
+                startPhase = Date.now();
+            }
 
             console.log();
 
             // 4. Run Prettier
             const prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+
+            // 计时：第三阶段（Prettier）
+            if (showTime) {
+                logTime("Prettier", Date.now() - startPhase);
+            }
 
             console.log();
 

@@ -3,6 +3,12 @@ export type Config = {
     cacheDir?: string,
     fix?: boolean,
     /**
+     * Enable timing output for each phase.
+     * Shows elapsed time for: preparation, ESLint, and Prettier phases.
+     * @default false
+     */
+    time?: boolean,
+    /**
      * Enable project-based type checking with tsconfig.
      * This enables `projectService` and `strictTypeChecked` rules.
      * Slower but more accurate type-aware linting.
