@@ -1,6 +1,6 @@
 {
   "name": "rhine-lint",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "module": "./dist/index.js",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,7 +29,7 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-assets.js",
