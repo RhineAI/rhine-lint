@@ -21,8 +21,8 @@ interface CliOptions {
     ignore?: string | string[] | boolean;
     cacheDir?: string;
     time?: boolean;
-    disableEslint?: boolean;
-    disablePrettier?: boolean;
+    onlyEslint?: boolean;
+    onlyPrettier?: boolean;
     debug?: boolean;
 }
 
@@ -38,8 +38,8 @@ cli
     .option("--no-ignore", "Disable all ignore rules (including .gitignore)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
     .option("--no-time", "Disable elapsed time display for each phase")
-    .option("--disable-eslint", "Disable ESLint linting")
-    .option("--disable-prettier", "Disable Prettier formatting check")
+    .option("--only-eslint", "Only run ESLint (skip Prettier)")
+    .option("--only-prettier", "Only run Prettier (skip ESLint)")
     .option("--debug", "Enable debug mode")
     .action(async (files: string[], options: CliOptions) => {
         const cwd = process.cwd();
@@ -100,9 +100,23 @@ cli
             }
             console.log();
 
-            // 确定是否启用 ESLint 和 Prettier（CLI 选项优先于配置文件）
-            const enableEslint = options.disableEslint ? false : (userConfigResult.config.eslint?.enable ?? true);
-            const enablePrettier = options.disablePrettier ? false : (userConfigResult.config.prettier?.enable ?? true);
+            // 确定是否启用 ESLint 和 Prettier
+            // --only-eslint: 只运行 ESLint，跳过 Prettier (CLI 优先于配置文件)
+            // --only-prettier: 只运行 Prettier，跳过 ESLint (CLI 优先于配置文件)
+            // 配置文件中的 enable 选项作为默认值
+            let enableEslint: boolean;
+            let enablePrettier: boolean;
+
+            if (options.onlyEslint) {
+                enableEslint = true;
+                enablePrettier = false;
+            } else if (options.onlyPrettier) {
+                enableEslint = false;
+                enablePrettier = true;
+            } else {
+                enableEslint = userConfigResult.config.eslint?.enable ?? true;
+                enablePrettier = userConfigResult.config.prettier?.enable ?? true;
+            }
 
             let eslintResult: string | null = null;
             let prettierResult: string | null = null;

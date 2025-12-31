@@ -162,8 +162,8 @@ CLI 参数优先级高于配置文件：
 - `--ignore-file <path>`: 指定类似 `.gitignore` 的忽略文件 (支持多次使用, e.g. `--ignore-file .gitignore --ignore-file .eslintignore`)。
 - `--ignore <pattern>`: 添加忽略模式 (支持多次使用, e.g. `--ignore dist --ignore coverage`)。
 - `--no-ignore`: 强制禁用所有忽略规则 (包括 ignoreFiles 和 ignores)。
-- `--disable-eslint`: 禁用 ESLint 检查 (覆盖配置文件中的 `eslint.enable`)。
-- `--disable-prettier`: 禁用 Prettier 格式检查 (覆盖配置文件中的 `prettier.enable`)。
+- `--only-eslint`: 只运行 ESLint，跳过 Prettier。
+- `--only-prettier`: 只运行 Prettier，跳过 ESLint。
 - `--no-time`: 禁用各阶段耗时信息显示（默认启用）。
 - `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
@@ -308,7 +308,7 @@ Rhine Lint 根据 `level` 参数加载不同的规则集：
 Name: Rhine Lint Quick Fix
 File Type: Any
 Program: $ProjectFileDir$/node_modules/.bin/rl
-Arguments: "$FilePath$" --fix --disable-eslint
+Arguments: "$FilePath$" --fix --only-prettier
 Output paths to refresh: $FilePath$
 Working directory: $ProjectFileDir$
 Show console: Never
@@ -374,8 +374,8 @@ cli
   .option("--no-ignore", "Disable all ignore rules")
   .option("--cache-dir <dir>", "Custom cache directory")
   .option("--no-time", "Disable elapsed time display")
-  .option("--disable-eslint", "Disable ESLint linting")
-  .option("--disable-prettier", "Disable Prettier formatting check")
+  .option("--only-eslint", "Only run ESLint (skip Prettier)")
+  .option("--only-prettier", "Only run Prettier (skip ESLint)")
   .option("--debug", "Enable debug mode")
 ```
 
