@@ -52,7 +52,7 @@ export default function createConfig(overrides = {}) {
     ENABLE_JSON: true, // Set to enable json file features
     ENABLE_STYLESHEET: true, // Set to enable CSS, SCSS, SASS and other stylesheet features
     IGNORE_PRETTIER: true, // Set to disable all rules that are unnecessary or might conflict with Prettier
-    TSCONFIG_PATH: './tsconfig.app.json', // path to tsconfig file
+    TSCONFIG_PATH: './tsconfig.json', // path to tsconfig file (default to tsconfig.json)
     ...overrides
   }
 

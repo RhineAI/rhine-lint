@@ -62,7 +62,8 @@ export async function generateTempConfig(
     cliLevel?: string,
     cliCacheDir?: string,
     debug?: boolean,
-    cliProjectTypeCheck?: boolean
+    cliProjectTypeCheck?: boolean,
+    cliTsconfig?: string
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -75,7 +76,10 @@ export async function generateTempConfig(
 
     // Determine projectTypeCheck: CLI flag takes precedence over config file, default is true
     // When --no-project-type-check is used, options.projectTypeCheck will be false
-    const projectTypeCheck = cliProjectTypeCheck ?? userConfigResult.config.eslint?.projectTypeCheck ?? true;
+    const projectTypeCheck = cliProjectTypeCheck ?? userConfigResult.config.projectTypeCheck ?? true;
+
+    // Determine tsconfig path: CLI flag takes precedence over config file
+    const tsconfigPath = cliTsconfig ?? userConfigResult.config.tsconfig;
 
     let calculatedHash = "";
     try {
@@ -83,6 +87,7 @@ export async function generateTempConfig(
         hash.update(pkg.version || "0.0.0");
         hash.update(cliLevel || "default");
         hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
+        hash.update(tsconfigPath || "default-tsconfig");
         if (userConfigResult.path && await fs.pathExists(userConfigResult.path)) {
             const content = await fs.readFile(userConfigResult.path);
             hash.update(content);
@@ -271,9 +276,15 @@ const userEslint = userOne.eslint || {};
 const level = "${cliLevel || ''}" || userOne.level || "frontend";
 
 // Project-based type checking: CLI flag (${projectTypeCheck}) takes precedence over config file
-const projectTypeCheck = ${projectTypeCheck} || userEslint.projectTypeCheck || false;
+const projectTypeCheck = ${projectTypeCheck} || userOne.projectTypeCheck || false;
+
+// TSConfig path: CLI flag takes precedence over config file
+const tsconfigPath = ${tsconfigPath ? `"${tsconfigPath}"` : 'null'} || userOne.tsconfig || null;
 
 let overrides = { ENABLE_PROJECT_BASE_TYPE_CHECKED: projectTypeCheck };
+if (tsconfigPath) {
+  overrides.TSCONFIG_PATH = tsconfigPath;
+}
 switch (level) {
   case "nextjs": overrides = { ...overrides, ENABLE_NEXT: true }; break;
   case "frontend": overrides = { ...overrides, ENABLE_FRONTEND: true, ENABLE_NEXT: false }; break;

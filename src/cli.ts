@@ -17,6 +17,7 @@ cli
     .option("--config <path>", "Path to config file")
     .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
     .option("--no-project-type-check", "Disable project-based type checking (faster for single files)")
+    .option("--tsconfig <path>", "Path to tsconfig file for type checking and import resolution")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
     .option("--debug", "Enable debug mode")
     .action(async (files: string[], options: any) => {
@@ -41,7 +42,7 @@ cli
             console.log();
 
             // 2. Generate Temp Configs
-            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck);
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig);
             usedCachePath = temps.cachePath; // Save for cleanup
 
             // 3. Run ESLint

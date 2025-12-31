@@ -87,10 +87,23 @@ export default {
   level: 'nextjs',
 
   // 是否默认开启修复模式 (可选)
-  fix: false, 
-  
+  fix: false,
+
   // 自定义缓存目录 (可选)
   // cacheDir: './.cache/rhine-lint',
+
+  // 启用基于项目的类型检查 (可选)
+  // 启用后会使用 projectService 和 strictTypeChecked 规则
+  // 更慢但更准确的类型感知 lint
+  // 设为 false 可禁用以加快单文件处理速度
+  // 默认为 true
+  projectTypeCheck: true,
+
+  // 指定 tsconfig 文件路径 (可选)
+  // 用于 TypeScript 类型检查和 import 路径解析
+  // 可以是绝对路径或相对于项目根目录的路径
+  // 默认为 './tsconfig.json'
+  tsconfig: './tsconfig.app.json',
 
   // ESLint 专项配置
   eslint: {
@@ -100,7 +113,7 @@ export default {
       nextjs: true,        // 开启 Next.js 规则
       imoprtX: true,       // 开启 Import 排序等规则
     },
-    
+
     // 自定义 ESLint 规则 (Flat Config 格式)
     // 这里的配置会与默认配置合并
     config: [
@@ -132,10 +145,49 @@ CLI 参数优先级高于配置文件：
 - `--fix`: 自动修复错误。
 - `--config <path>`: 指定配置文件路径。
 - `--level <level>`: 强制指定项目类型（`js`, `ts`, `frontend`, `nextjs`）。
+- `--no-project-type-check`: 禁用基于项目的类型检查 (可加快单文件处理速度)。
+- `--tsconfig <path>`: 指定 tsconfig 文件路径 (用于类型检查和 import 解析)。
 - `--ignore <pattern>`: 添加忽略模式 (支持多次使用, e.g. `--ignore dist --ignore coverage`)。
 - `--no-ignore`: 强制禁用所有忽略规则 (包括 .gitignore)。
 - `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
+
+### TypeScript 配置选项
+
+#### projectTypeCheck
+
+控制是否启用基于项目的 TypeScript 类型检查：
+
+- **启用时 (默认)**: 使用 `projectService` 和 `strictTypeChecked` 规则，提供更准确的类型感知 lint，但速度较慢。
+- **禁用时**: 使用更轻量的规则集，适合快速的单文件检查或 CI 环境。
+
+```bash
+# 禁用项目类型检查 (CLI)
+npx rl --no-project-type-check
+
+# 在配置文件中设置
+# rhine-lint.config.ts
+export default {
+  projectTypeCheck: false
+}
+```
+
+#### tsconfig
+
+指定用于 TypeScript 类型检查和 import 路径解析的 tsconfig 文件：
+
+```bash
+# 指定 tsconfig 路径 (CLI)
+npx rl --tsconfig ./tsconfig.app.json
+
+# 在配置文件中设置
+# rhine-lint.config.ts
+export default {
+  tsconfig: './tsconfig.app.json'
+}
+```
+
+默认使用 `./tsconfig.json`。如果你的项目使用不同的 tsconfig 文件（如 `tsconfig.app.json`、`tsconfig.node.json` 等），可以通过此选项指定。
 
 ### 缓存目录 Cache Directory
 
