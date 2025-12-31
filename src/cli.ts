@@ -56,7 +56,6 @@ cli
             } else {
                 logInfo("Using default configuration");
             }
-            console.log();
 
             // 2. Generate Temp Configs
             // Normalize ignore option to array (--no-ignore sets options.ignore to false, --ignore without value sets to true)
@@ -75,6 +74,7 @@ cli
                 logTime("Preparation", Date.now() - startPhase);
                 startPhase = Date.now();
             }
+            console.log();
 
             // 3. Run ESLint
             const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
