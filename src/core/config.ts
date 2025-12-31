@@ -229,8 +229,8 @@ export async function generateTempConfig(
             ignoredPatterns = defaultIgnores;
         }
 
-        // Add CLI ignore patterns
-        const configIgnorePatterns = userConfigResult.config.ignore || [];
+        // Add CLI and config file ignore patterns
+        const configIgnorePatterns = (userConfigResult.config.ignore || []).filter((p): p is string => typeof p === 'string');
         const allCliPatterns = [...cliIgnorePatterns, ...configIgnorePatterns];
         if (allCliPatterns.length > 0) {
             // Normalize CLI patterns (add **/ prefix and /** suffix if needed)

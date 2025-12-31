@@ -44,9 +44,14 @@ cli
             console.log();
 
             // 2. Generate Temp Configs
-            // Normalize ignore option to array (--no-ignore sets options.ignore to false)
+            // Normalize ignore option to array (--no-ignore sets options.ignore to false, --ignore without value sets to true)
             const noIgnore = options.ignore === false;
-            const ignorePatterns = (!noIgnore && options.ignore) ? (Array.isArray(options.ignore) ? options.ignore : [options.ignore]) : [];
+            let ignorePatterns: string[] = [];
+            if (!noIgnore && options.ignore && options.ignore !== true) {
+                ignorePatterns = Array.isArray(options.ignore)
+                    ? options.ignore.filter((p: unknown) => typeof p === 'string')
+                    : [options.ignore];
+            }
             const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore);
             usedCachePath = temps.cachePath; // Save for cleanup
 
