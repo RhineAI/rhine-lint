@@ -45,7 +45,7 @@ export default function createConfig(overrides = {}) {
   const OPTIONS = {
     ENABLE_SCRIPT: true, // Set to enable typescript javascript file features
     ENABLE_TYPE_CHECKED: true, // Set to enable type features
-    ENABLE_PROJECT_BASE_TYPE_CHECKED: false, // Set to enable project-based type features
+    ENABLE_PROJECT_BASE_TYPE_CHECKED: true, // Set to enable project-based type features
     ENABLE_FRONTEND: true, // Set to enable JSX, React, Reacts Hooks, and other frontend features
     ENABLE_NEXT: false, // Set to enable Next.js and other frontend features
     ENABLE_MARKDOWN: true, // Set to enable markdown file features

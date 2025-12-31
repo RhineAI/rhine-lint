@@ -61,7 +61,8 @@ export async function generateTempConfig(
     userConfigResult: { config: Config, path?: string },
     cliLevel?: string,
     cliCacheDir?: string,
-    debug?: boolean
+    debug?: boolean,
+    cliProjectTypeCheck?: boolean
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -72,11 +73,16 @@ export async function generateTempConfig(
     const metaPath = path.join(cachePath, "metadata.json");
     const gitignorePath = path.join(cwd, ".gitignore");
 
+    // Determine projectTypeCheck: CLI flag takes precedence over config file, default is true
+    // When --no-project-type-check is used, options.projectTypeCheck will be false
+    const projectTypeCheck = cliProjectTypeCheck ?? userConfigResult.config.eslint?.projectTypeCheck ?? true;
+
     let calculatedHash = "";
     try {
         const hash = createHash("sha256");
         hash.update(pkg.version || "0.0.0");
         hash.update(cliLevel || "default");
+        hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
         if (userConfigResult.path && await fs.pathExists(userConfigResult.path)) {
             const content = await fs.readFile(userConfigResult.path);
             hash.update(content);
@@ -264,12 +270,15 @@ const userOne = loaded.default || loaded;
 const userEslint = userOne.eslint || {};
 const level = "${cliLevel || ''}" || userOne.level || "frontend";
 
-let overrides = {};
+// Project-based type checking: CLI flag (${projectTypeCheck}) takes precedence over config file
+const projectTypeCheck = ${projectTypeCheck} || userEslint.projectTypeCheck || false;
+
+let overrides = { ENABLE_PROJECT_BASE_TYPE_CHECKED: projectTypeCheck };
 switch (level) {
-  case "nextjs": overrides = { ENABLE_NEXT: true }; break;
-  case "frontend": overrides = { ENABLE_FRONTEND: true, ENABLE_NEXT: false }; break;
-  case "ts": overrides = { ENABLE_FRONTEND: false }; break;
-  case "js": overrides = { ENABLE_FRONTEND: false, ENABLE_TYPE_CHECKED: false }; break;
+  case "nextjs": overrides = { ...overrides, ENABLE_NEXT: true }; break;
+  case "frontend": overrides = { ...overrides, ENABLE_FRONTEND: true, ENABLE_NEXT: false }; break;
+  case "ts": overrides = { ...overrides, ENABLE_FRONTEND: false }; break;
+  case "js": overrides = { ...overrides, ENABLE_FRONTEND: false, ENABLE_TYPE_CHECKED: false }; break;
 }
 
 const defaultEslint = createConfig(overrides);
