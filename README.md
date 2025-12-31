@@ -344,6 +344,8 @@ Name: Rhine Lint Fix
 Arguments: "$FilePath$" --fix --no-project-type-check
 ```
 7. 点击 `OK` 保存
+8. 打开 `Settings` -> `Tools` -> `Actions on Save`
+9. 关闭所有其他关于代码格式化规范化的选项以避免功能冲突。（如 Reformat, EsLint, Prettier, ...）
 
 ## 技术实现与原理 Implementation Insights
 

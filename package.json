@@ -13,9 +13,11 @@
     "eslint",
     "prettier",
     "lint",
+    "format",
     "typescript",
     "nextjs",
     "react",
+    "frontend",
     "opinionated"
   ],
   "author": "RhineAI <rhineai@163.com>",
