@@ -23,7 +23,7 @@ cli
     .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
     .option("--no-ignore", "Disable all ignore rules (including .gitignore)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
-    .option("--time", "Show elapsed time for each phase")
+    .option("--no-time", "Disable elapsed time display for each phase")
     .option("--disable-eslint", "Disable ESLint linting")
     .option("--disable-prettier", "Disable Prettier formatting check")
     .option("--debug", "Enable debug mode")
@@ -33,8 +33,8 @@ cli
         const targetFiles = files.length > 0 ? files : ["."];
         let usedCachePath: string | undefined;
 
-        // 计时功能：从 CLI 选项或配置文件获取
-        let showTime = options.time ?? false;
+        // 计时功能：默认启用，可通过 --no-time 或配置文件禁用
+        let showTime = options.time !== false;
         const startTotal = Date.now();
         let startPhase = startTotal;
 

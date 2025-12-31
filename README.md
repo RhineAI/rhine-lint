@@ -164,7 +164,7 @@ CLI 参数优先级高于配置文件：
 - `--no-ignore`: 强制禁用所有忽略规则 (包括 ignoreFiles 和 ignores)。
 - `--disable-eslint`: 禁用 ESLint 检查 (覆盖配置文件中的 `eslint.enable`)。
 - `--disable-prettier`: 禁用 Prettier 格式检查 (覆盖配置文件中的 `prettier.enable`)。
-- `--time`: 显示各阶段耗时信息。
+- `--no-time`: 禁用各阶段耗时信息显示（默认启用）。
 - `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
 
@@ -348,7 +348,7 @@ cli
   .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
   .option("--no-ignore", "Disable all ignore rules")
   .option("--cache-dir <dir>", "Custom cache directory")
-  .option("--time", "Show elapsed time for each phase")
+  .option("--no-time", "Disable elapsed time display")
   .option("--disable-eslint", "Disable ESLint linting")
   .option("--disable-prettier", "Disable Prettier formatting check")
   .option("--debug", "Enable debug mode")
@@ -548,7 +548,7 @@ export type Config = {
   type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
   cacheDir?: string,
   fix?: boolean,
-  time?: boolean,                // 显示各阶段耗时 (default: false)
+  time?: boolean,                // 显示各阶段耗时 (default: true)
   projectTypeCheck?: boolean,    // 启用项目级类型检查 (default: true)
   tsconfig?: string,             // tsconfig 文件路径 (default: './tsconfig.json')
   ignoreFiles?: string[],        // gitignore 风格的忽略文件列表 (default: ['./.gitignore'])

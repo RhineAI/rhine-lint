@@ -29,7 +29,7 @@ export type Config = {
     /**
      * Enable timing output for each phase.
      * Shows elapsed time for: preparation, ESLint, and Prettier phases.
-     * @default false
+     * @default true
      */
     time?: boolean,
     /**
