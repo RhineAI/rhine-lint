@@ -24,6 +24,8 @@ cli
     .option("--no-ignore", "Disable all ignore rules (including .gitignore)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
     .option("--time", "Show elapsed time for each phase")
+    .option("--disable-eslint", "Disable ESLint linting")
+    .option("--disable-prettier", "Disable Prettier formatting check")
     .option("--debug", "Enable debug mode")
     .action(async (files: string[], options: any) => {
         const cwd = process.cwd();
@@ -84,39 +86,58 @@ cli
             }
             console.log();
 
+            // 确定是否启用 ESLint 和 Prettier（CLI 选项优先于配置文件）
+            const enableEslint = options.disableEslint ? false : (userConfigResult.config.eslint?.enable ?? true);
+            const enablePrettier = options.disablePrettier ? false : (userConfigResult.config.prettier?.enable ?? true);
+
+            let eslintResult: string | null = null;
+            let prettierResult: string | null = null;
+
             // 3. Run ESLint
-            const eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
+            if (enableEslint) {
+                eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
 
-            // 计时：第二阶段（ESLint）
-            if (showTime) {
-                logTime("ESLint", Date.now() - startPhase);
-                startPhase = Date.now();
+                // 计时：第二阶段（ESLint）
+                if (showTime) {
+                    logTime("ESLint", Date.now() - startPhase);
+                    startPhase = Date.now();
+                }
+                console.log();
+            } else {
+                logInfo("ESLint: Disabled");
+                console.log();
             }
-
-            console.log();
 
             // 4. Run Prettier
-            const prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+            if (enablePrettier) {
+                prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
 
-            // 计时：第三阶段（Prettier）
-            if (showTime) {
-                logTime("Prettier", Date.now() - startPhase);
+                // 计时：第三阶段（Prettier）
+                if (showTime) {
+                    logTime("Prettier", Date.now() - startPhase);
+                }
+                console.log();
+            } else {
+                logInfo("Prettier: Disabled");
+                console.log();
             }
-
-            console.log();
 
             if (eslintResult || prettierResult) {
                 logError("Linting completed with issues:");
-                if (eslintResult) {
-                    logError(`ESLint: ${eslintResult}`);
-                } else {
-                    logSuccess(`ESLint: No issues found`);
+                if (enableEslint) {
+                    if (eslintResult) {
+                        logError(`ESLint: ${eslintResult}`);
+                    } else {
+                        logSuccess(`ESLint: No issues found`);
+                    }
                 }
 
-                if (prettierResult) {
-                    logError(`Prettier: ${prettierResult}`);
-                } else {
-                    logSuccess(`Prettier: No issues found`);
+                if (enablePrettier) {
+                    if (prettierResult) {
+                        logError(`Prettier: ${prettierResult}`);
+                    } else {
+                        logSuccess(`Prettier: No issues found`);
+                    }
                 }
                 process.exit(1);
             }

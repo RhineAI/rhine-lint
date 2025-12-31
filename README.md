@@ -111,6 +111,10 @@ export default {
 
   // ESLint 专项配置
   eslint: {
+    // 是否启用 ESLint (默认为 true)
+    // 设为 false 可禁用 ESLint 检查
+    enable: true,
+
     // 启用/禁用特定范围的规则
     scope: {
       frontend: true,      // 开启前端规则 (React 等)
@@ -133,6 +137,10 @@ export default {
 
   // Prettier 专项配置
   prettier: {
+    // 是否启用 Prettier (默认为 true)
+    // 设为 false 可禁用 Prettier 格式检查
+    enable: true,
+
     config: {
       printWidth: 100,
       semi: true,
@@ -154,6 +162,9 @@ CLI 参数优先级高于配置文件：
 - `--ignore-file <path>`: 指定类似 `.gitignore` 的忽略文件 (支持多次使用, e.g. `--ignore-file .gitignore --ignore-file .eslintignore`)。
 - `--ignore <pattern>`: 添加忽略模式 (支持多次使用, e.g. `--ignore dist --ignore coverage`)。
 - `--no-ignore`: 强制禁用所有忽略规则 (包括 ignoreFiles 和 ignores)。
+- `--disable-eslint`: 禁用 ESLint 检查 (覆盖配置文件中的 `eslint.enable`)。
+- `--disable-prettier`: 禁用 Prettier 格式检查 (覆盖配置文件中的 `prettier.enable`)。
+- `--time`: 显示各阶段耗时信息。
 - `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
 
@@ -337,6 +348,9 @@ cli
   .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
   .option("--no-ignore", "Disable all ignore rules")
   .option("--cache-dir <dir>", "Custom cache directory")
+  .option("--time", "Show elapsed time for each phase")
+  .option("--disable-eslint", "Disable ESLint linting")
+  .option("--disable-prettier", "Disable Prettier formatting check")
   .option("--debug", "Enable debug mode")
 ```
 
@@ -534,16 +548,21 @@ export type Config = {
   type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
   cacheDir?: string,
   fix?: boolean,
-  projectTypeCheck?: boolean,  // 启用项目级类型检查 (default: true)
-  tsconfig?: string,           // tsconfig 文件路径 (default: './tsconfig.json')
-  ignore?: string[],           // 额外的忽略模式
+  time?: boolean,                // 显示各阶段耗时 (default: false)
+  projectTypeCheck?: boolean,    // 启用项目级类型检查 (default: true)
+  tsconfig?: string,             // tsconfig 文件路径 (default: './tsconfig.json')
+  ignoreFiles?: string[],        // gitignore 风格的忽略文件列表 (default: ['./.gitignore'])
+  ignores?: string[],            // 忽略模式列表 (default: ['package-lock.json', ...])
+  ignore?: string[],             // [deprecated] 使用 ignores 代替
   eslint?: {
-    config?: [...],            // ESLint Flat Config 数组
-    overlay?: boolean,         // 覆盖模式
+    enable?: boolean,            // 是否启用 ESLint (default: true)
+    config?: [...],              // ESLint Flat Config 数组
+    overlay?: boolean,           // 覆盖模式 (true: 完全覆盖内置配置)
   },
   prettier?: {
-    config?: {...},            // Prettier 配置对象
-    overlay?: boolean,
+    enable?: boolean,            // 是否启用 Prettier (default: true)
+    config?: {...},              // Prettier 配置对象
+    overlay?: boolean,           // 覆盖模式 (true: 完全覆盖内置配置)
   }
 }
 ```

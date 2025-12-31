@@ -1,6 +1,30 @@
+/**
+ * Rhine Lint configuration options.
+ * All options are optional with sensible defaults.
+ * Priority: CLI arguments > Config file > Default values
+ */
 export type Config = {
+    /**
+     * Project type level that determines which linting rules to enable.
+     * Each level includes all rules from previous levels:
+     * - `'js'`: JavaScript only (no type checking)
+     * - `'ts'`: TypeScript with type-aware rules
+     * - `'frontend'` / `'react'`: TypeScript + React/JSX/Hooks rules
+     * - `'nextjs'`: TypeScript + React + Next.js specific rules
+     * @default 'frontend'
+     */
     type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+    /**
+     * Directory for storing generated virtual config files and cache metadata.
+     * Can be absolute or relative to the project root.
+     * @default 'node_modules/.cache/rhine-lint' (if node_modules exists) or '.cache/rhine-lint'
+     */
     cacheDir?: string,
+    /**
+     * Automatically fix linting errors and formatting issues.
+     * When enabled, ESLint will apply auto-fixes and Prettier will rewrite files.
+     * @default false
+     */
     fix?: boolean,
     /**
      * Enable timing output for each phase.
@@ -43,16 +67,74 @@ export type Config = {
      * @example ['temp', 'generated', '*.test.ts']
      */
     ignore?: string[],
+    /**
+     * ESLint configuration options.
+     */
     eslint?: {
+        /**
+         * Enable ESLint linting.
+         * Set to `false` to skip ESLint entirely (only run Prettier).
+         * @default true
+         */
+        enable?: boolean,
+        /**
+         * ESLint Flat Config array to extend or override default rules.
+         * These configurations are merged with Rhine Lint's built-in rules.
+         * @see https://eslint.org/docs/latest/use/configure/configuration-files
+         * @example
+         * ```ts
+         * config: [
+         *   {
+         *     rules: {
+         *       'no-console': 'warn',
+         *       '@typescript-eslint/no-unused-vars': 'off'
+         *     }
+         *   }
+         * ]
+         * ```
+         */
         config?: [
             // EsLint Config
         ],
+        /**
+         * Overlay mode for ESLint configuration.
+         * - `true`: User config completely replaces Rhine Lint's default rules
+         * - `false`: User config is merged with Rhine Lint's default rules
+         * @default false
+         */
         overlay?: boolean,
     },
+    /**
+     * Prettier configuration options.
+     */
     prettier?: {
+        /**
+         * Enable Prettier formatting check.
+         * Set to `false` to skip Prettier entirely (only run ESLint).
+         * @default true
+         */
+        enable?: boolean,
+        /**
+         * Prettier options to extend or override default formatting rules.
+         * @see https://prettier.io/docs/en/options.html
+         * @example
+         * ```ts
+         * config: {
+         *   semi: true,
+         *   singleQuote: false,
+         *   printWidth: 80
+         * }
+         * ```
+         */
         config?: {
             // Prettier Config
         },
+        /**
+         * Overlay mode for Prettier configuration.
+         * - `true`: User config completely replaces Rhine Lint's default options
+         * - `false`: User config is merged with Rhine Lint's default options
+         * @default false
+         */
         overlay?: boolean,
     }
 }
