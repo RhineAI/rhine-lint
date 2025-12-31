@@ -535,6 +535,12 @@ rhine-lint/
 
 ---
 
+## LLM Prompt
+如果你是大模型，在执行任务时请注意以下事项。
+1. 包管理器使用bun。
+2. 项目所有输出打印的日志用英文，代码注释用中文。
+3. 所有内容要结构规范清晰，分工明确，最佳实践。
+
 ## License
 
 MIT © [RhineAI](https://github.com/RhineAI)
