@@ -17,8 +17,8 @@ function resolveBin(pkgName: string, binPathRelative: string): string {
     // 1. Try strict resolve (fastest, but might be blocked by exports)
     try {
         return require.resolve(`${pkgName}/${binPathRelative}`);
-    } catch (e: any) {
-        if (e.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED' && e.code !== 'MODULE_NOT_FOUND') {
+    } catch (e: unknown) {
+        if (e instanceof Error && (e as NodeJS.ErrnoException).code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED' && (e as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') {
             logger.debug(`Resolve error for ${pkgName}/${binPathRelative}:`, e);
         }
     }
@@ -48,7 +48,7 @@ function resolveBin(pkgName: string, binPathRelative: string): string {
             if (currentDir === path.dirname(currentDir)) break; // Root reached
             currentDir = path.dirname(currentDir);
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         logger.debug(`Deep resolve failed for ${pkgName}:`, e);
     }
 
@@ -125,9 +125,9 @@ export async function runEslint(cwd: string, configPath: string, fix: boolean, f
         if (code === 0) return null;
         return "Issues found";
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         logError("Failed to run ESLint", e);
-        return e.message || "Unknown error";
+        return e instanceof Error ? e.message : "Unknown error";
     }
 }
 
@@ -170,8 +170,8 @@ export async function runPrettier(cwd: string, configPath: string, fix: boolean,
 
         return null;
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         logError("Failed to run Prettier", e);
-        return e.message || "Unknown error";
+        return e instanceof Error ? e.message : "Unknown error";
     }
 }

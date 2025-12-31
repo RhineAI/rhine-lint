@@ -3,11 +3,6 @@ import { colors } from "consola/utils";
 
 const { cyan, red, green, yellow, gray } = colors;
 
-// Custom logger to satisfy "RL" prefix requirement
-const rLine = (colorFn: (str: string) => string, type: string, msg: string) => {
-    console.log(`${colorFn("RL")} ${msg}`);
-}
-
 export const logger = createConsola({
     level: 3,
 });

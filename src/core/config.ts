@@ -311,7 +311,8 @@ export async function generateTempConfig(
     const jitiUrl = pathToFileURL(require.resolve("jiti")).href;
 
     let finalUserConfigUrl = userConfigUrl;
-    if (userConfigResult.path && (userConfigResult.path.endsWith('.ts') || userConfigResult.path.endsWith('.mts') || userConfigResult.path.endsWith('.cts'))) {
+    const tsExtensions = ['.ts', '.mts', '.cts'];
+    if (userConfigResult.path && tsExtensions.some(ext => userConfigResult.path!.endsWith(ext))) {
         try {
             const ts = await import('typescript');
             const fileContent = await fs.readFile(userConfigResult.path, 'utf-8');

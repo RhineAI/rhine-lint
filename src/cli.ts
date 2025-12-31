@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { createRequire } from 'module';
-// import cac from "cac";
 import path from "node:path";
 import { loadUserConfig, generateTempConfig, cleanup } from "./core/config.js";
 import { runEslint, runPrettier } from "./core/runner.js";
@@ -11,6 +10,21 @@ const pkg = require('../package.json');
 const cac = require('cac');
 const version: string = pkg.version || "0.0.0";
 const cli = cac.cac ? cac.cac("rhine-lint") : cac("rhine-lint");
+
+interface CliOptions {
+    fix?: boolean;
+    config?: string;
+    level?: string;
+    projectTypeCheck?: boolean;
+    tsconfig?: string;
+    ignoreFile?: string | string[] | boolean;
+    ignore?: string | string[] | boolean;
+    cacheDir?: string;
+    time?: boolean;
+    disableEslint?: boolean;
+    disablePrettier?: boolean;
+    debug?: boolean;
+}
 
 cli
     .command("[...files]", "Lint files")
@@ -27,7 +41,7 @@ cli
     .option("--disable-eslint", "Disable ESLint linting")
     .option("--disable-prettier", "Disable Prettier formatting check")
     .option("--debug", "Enable debug mode")
-    .action(async (files: string[], options: any) => {
+    .action(async (files: string[], options: CliOptions) => {
         const cwd = process.cwd();
         // If files is empty, default to "."
         const targetFiles = files.length > 0 ? files : ["."];
@@ -95,7 +109,7 @@ cli
 
             // 3. Run ESLint
             if (enableEslint) {
-                eslintResult = await runEslint(cwd, temps.eslintPath, options.fix, targetFiles);
+                eslintResult = await runEslint(cwd, temps.eslintPath, options.fix ?? false, targetFiles);
 
                 // 计时：第二阶段（ESLint）
                 if (showTime) {
@@ -110,7 +124,7 @@ cli
 
             // 4. Run Prettier
             if (enablePrettier) {
-                prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix, targetFiles);
+                prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix ?? false, targetFiles);
 
                 // 计时：第三阶段（Prettier）
                 if (showTime) {
