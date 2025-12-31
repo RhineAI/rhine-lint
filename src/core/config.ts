@@ -69,6 +69,7 @@ export async function generateTempConfig(
     cwd: string,
     userConfigResult: { config: Config, path?: string },
     cliLevel?: string,
+    cliTypescript?: boolean,
     cliCacheDir?: string,
     debug?: boolean,
     cliProjectTypeCheck?: boolean,
@@ -84,6 +85,10 @@ export async function generateTempConfig(
     const eslintTempPath = path.join(cachePath, "eslint.config.mjs");
     const prettierTempPath = path.join(cachePath, "prettier.config.mjs");
     const metaPath = path.join(cachePath, "metadata.json");
+
+    // Determine typescript: CLI flag takes precedence over config file, default is true
+    // When --no-typescript is used, options.typescript will be false
+    const typescript = cliTypescript ?? userConfigResult.config.typescript ?? true;
 
     // Determine projectTypeCheck: CLI flag takes precedence over config file, default is true
     // When --no-project-type-check is used, options.projectTypeCheck will be false
@@ -114,6 +119,7 @@ export async function generateTempConfig(
         const hash = createHash("sha256");
         hash.update(pkg.version || "0.0.0");
         hash.update(cliLevel || "default");
+        hash.update(typescript ? "ts-on" : "ts-off");
         hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
         hash.update(tsconfigPath || "default-tsconfig");
         hash.update(resolvedIgnoreFiles.join(",") || "no-ignore-files");
@@ -347,7 +353,8 @@ const userOne = loaded.default || loaded;
 ` : 'const userOne = {};'}
 
 const userEslint = userOne.eslint || {};
-const level = "${cliLevel || ''}" || userOne.level || "frontend";
+const level = "${cliLevel || ''}" || userOne.level || "react";
+const typescript = ${typescript};
 
 // Project-based type checking: CLI flag (${projectTypeCheck}) takes precedence over config file
 const projectTypeCheck = ${projectTypeCheck} || userOne.projectTypeCheck || false;
@@ -355,15 +362,15 @@ const projectTypeCheck = ${projectTypeCheck} || userOne.projectTypeCheck || fals
 // TSConfig path: CLI flag takes precedence over config file
 const tsconfigPath = ${tsconfigPath ? `"${tsconfigPath}"` : 'null'} || userOne.tsconfig || null;
 
-let overrides = { ENABLE_PROJECT_BASE_TYPE_CHECKED: projectTypeCheck };
+// 根据 level 和 typescript 计算启用的规则
+let overrides = {
+  ENABLE_TYPE_CHECKED: typescript,
+  ENABLE_PROJECT_BASE_TYPE_CHECKED: typescript && projectTypeCheck,
+  ENABLE_FRONTEND: level === "react" || level === "next",
+  ENABLE_NEXT: level === "next",
+};
 if (tsconfigPath) {
   overrides.TSCONFIG_PATH = tsconfigPath;
-}
-switch (level) {
-  case "nextjs": overrides = { ...overrides, ENABLE_NEXT: true }; break;
-  case "frontend": overrides = { ...overrides, ENABLE_FRONTEND: true, ENABLE_NEXT: false }; break;
-  case "ts": overrides = { ...overrides, ENABLE_FRONTEND: false }; break;
-  case "js": overrides = { ...overrides, ENABLE_FRONTEND: false, ENABLE_TYPE_CHECKED: false }; break;
 }
 
 const defaultEslint = createConfig(overrides);

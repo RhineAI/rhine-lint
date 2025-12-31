@@ -56,7 +56,7 @@ rl --fix
 rl src/components
 
 # 指定项目类型 (覆盖自动检测或默认值)
-rl --level nextjs
+rl --level next
 ```
 
 ### 推荐配置
@@ -82,9 +82,15 @@ rl --level nextjs
 import { type Config } from 'rhine-lint';
 
 export default {
-  // 指定项目级别: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs'
-  // 默认为 'frontend'
-  level: 'nextjs',
+  // 指定项目级别: 'normal' | 'react' | 'next'
+  // 默认为 'react'
+  level: 'next',
+
+  // 是否启用 TypeScript 支持 (可选)
+  // true: 启用 TypeScript 规则 (TS, TSX 文件)
+  // false: JavaScript 模式 (JS, JSX 文件)
+  // 默认为 true
+  typescript: true,
 
   // 是否默认开启修复模式 (可选)
   fix: false,
@@ -114,13 +120,6 @@ export default {
     // 是否启用 ESLint (默认为 true)
     // 设为 false 可禁用 ESLint 检查
     enable: true,
-
-    // 启用/禁用特定范围的规则
-    scope: {
-      frontend: true,      // 开启前端规则 (React 等)
-      nextjs: true,        // 开启 Next.js 规则
-      imoprtX: true,       // 开启 Import 排序等规则
-    },
 
     // 自定义 ESLint 规则 (Flat Config 格式)
     // 这里的配置会与默认配置合并
@@ -156,7 +155,8 @@ CLI 参数优先级高于配置文件：
 
 - `--fix`: 自动修复错误。
 - `--config <path>`: 指定配置文件路径。
-- `--level <level>`: 强制指定项目类型（`js`, `ts`, `frontend`, `nextjs`）。
+- `--level <level>`: 强制指定项目级别（`normal`, `react`, `next`）。
+- `--no-typescript`: 禁用 TypeScript 支持，使用 JavaScript 模式。
 - `--no-project-type-check`: 禁用基于项目的类型检查 (可加快单文件处理速度)。
 - `--tsconfig <path>`: 指定 tsconfig 文件路径 (用于类型检查和 import 解析)。
 - `--ignore-file <path>`: 指定类似 `.gitignore` 的忽略文件 (支持多次使用, e.g. `--ignore-file .gitignore --ignore-file .eslintignore`)。
@@ -289,12 +289,29 @@ Rhine Lint 需要一个目录来存放运行时动态生成的 "Virtual Config" 
 
 ## 项目级别 Project Levels
 
-Rhine Lint 根据 `level` 参数加载不同的规则集：
+Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集：
 
-- **`js`**: 基础 JavaScript 项目。仅包含标准 JS 规则和 Prettier。
-- **`ts`**: TypeScript 项目。包含 TS 类型检查规则、TSDoc 等。
-- **`frontend`** (默认): 前端 React 项目。包含 `ts` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
-- **`nextjs`**: Next.js 项目。包含 `frontend` 级别所有规则，加上 `@next/eslint-plugin-next` 的 Core Web Vitals 等规则。
+### Level 选项
+
+- **`normal`**: 基础项目。仅包含标准规则和 Prettier。
+- **`react`** (默认): React 前端项目。包含 `normal` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
+- **`next`**: Next.js 项目。包含 `react` 级别所有规则，加上 `@next/eslint-plugin-next` 的 Core Web Vitals 等规则。
+
+### TypeScript 选项
+
+- **`typescript: true`** (默认): 启用 TypeScript 规则，支持 `.ts`, `.tsx` 文件，包含类型检查规则。
+- **`typescript: false`**: JavaScript 模式，支持 `.js`, `.jsx` 文件，无类型检查。
+
+### 组合示例
+
+| level | typescript | 说明 |
+|-------|------------|------|
+| `normal` | `true` | TypeScript 基础项目 |
+| `normal` | `false` | JavaScript 基础项目 |
+| `react` | `true` | TypeScript + React 项目 |
+| `react` | `false` | JavaScript + React 项目 |
+| `next` | `true` | TypeScript + React + Next.js 项目 |
+| `next` | `false` | JavaScript + React + Next.js 项目 |
 
 ## Trigger Fix when Save
 
@@ -366,7 +383,8 @@ cli
   .command("[...files]", "Lint files")
   .option("--fix", "Fix lint errors")
   .option("--config <path>", "Path to config file")
-  .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
+  .option("--level <level>", "Project level (normal, react, next)")
+  .option("--no-typescript", "Disable TypeScript support (JavaScript only mode)")
   .option("--no-project-type-check", "Disable project-based type checking")
   .option("--tsconfig <path>", "Path to tsconfig file")
   .option("--ignore-file [path]", "Add gitignore-style file (can be used multiple times)")
@@ -573,13 +591,19 @@ export type Config = {
   /**
    * 项目级别，决定启用哪些规则
    * 每个级别包含前一级别的所有规则:
-   * - 'js': 仅 JavaScript (无类型检查)
-   * - 'ts': TypeScript 类型感知规则
-   * - 'frontend' / 'react': TypeScript + React/JSX/Hooks 规则
-   * - 'nextjs': TypeScript + React + Next.js 规则
-   * @default 'frontend'
+   * - 'normal': 基础规则 (根据 typescript 选项决定 JS 或 TS)
+   * - 'react': Normal + React/JSX/Hooks 规则
+   * - 'next': React + Next.js 规则
+   * @default 'react'
    */
-  level?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+  level?: 'normal' | 'react' | 'next',
+  /**
+   * 启用 TypeScript 支持和类型感知规则
+   * - true: 启用 TypeScript 规则 (TS, TSX 文件)
+   * - false: JavaScript 模式 (JS, JSX 文件)
+   * @default true
+   */
+  typescript?: boolean,
   /**
    * 存储生成的虚拟配置文件和缓存元数据的目录
    * @default 'node_modules/.cache/rhine-lint' 或 '.cache/rhine-lint'

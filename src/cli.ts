@@ -15,6 +15,7 @@ interface CliOptions {
     fix?: boolean;
     config?: string;
     level?: string;
+    typescript?: boolean;
     projectTypeCheck?: boolean;
     tsconfig?: string;
     ignoreFile?: string | string[] | boolean;
@@ -30,7 +31,8 @@ cli
     .command("[...files]", "Lint files")
     .option("--fix", "Fix lint errors")
     .option("--config <path>", "Path to config file")
-    .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
+    .option("--level <level>", "Project level (normal, react, next)")
+    .option("--no-typescript", "Disable TypeScript support (JavaScript only mode)")
     .option("--no-project-type-check", "Disable project-based type checking (faster for single files)")
     .option("--tsconfig <path>", "Path to tsconfig file for type checking and import resolution")
     .option("--ignore-file [path]", "Add gitignore-style file for ignore patterns (can be used multiple times)")
@@ -90,7 +92,7 @@ cli
                     ? options.ignoreFile.filter((p: unknown) => typeof p === 'string')
                     : [options.ignoreFile];
             }
-            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore, ignoreFiles);
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.typescript, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore, ignoreFiles);
             usedCachePath = temps.cachePath; // Save for cleanup
 
             // 计时：第一阶段（准备阶段）
