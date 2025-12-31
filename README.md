@@ -110,7 +110,7 @@ export default {
           'react/no-unknown-property': 'off'
         }
       }
-      ...
+      // ...
     ]
   },
 
@@ -119,7 +119,7 @@ export default {
     config: {
       printWidth: 100,
       semi: true,
-      ...
+      // ...
     }
   }
 } as Config;
@@ -132,6 +132,9 @@ CLI 参数优先级高于配置文件：
 - `--fix`: 自动修复错误。
 - `--config <path>`: 指定配置文件路径。
 - `--level <level>`: 强制指定项目类型（`js`, `ts`, `frontend`, `nextjs`）。
+- `--ignore <pattern>`: 添加忽略模式 (支持多次使用, e.g. `--ignore dist --ignore coverage`)。
+- `--no-ignore`: 强制禁用所有忽略规则 (包括 .gitignore)。
+- `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
 
 ### 缓存目录 Cache Directory
@@ -202,10 +205,14 @@ graph TD
 这是项目最复杂的部分。为了实现「零配置」且不污染用户目录，我们采用 **虚拟配置 (Virtual Configuration)** 策略。
 
 - **动态生成**: 我们不依赖用户项目里的 `.eslintrc`。相反，我们在运行时，在 `node_modules/.cache/rhine-lint/` 下生成一个真实的 `eslint.config.mjs`。
-- **JIT 编译**: 生成的配置文件不仅仅是 JSON，它是一段 **JavaScript 代码**。
-  - 它会 `import` rhine-lint 内部的 `src/assets/eslint.config.js`。
-  - 它会使用 `jiti` 或动态导入 (`import()`) 来加载用户的 `rhine-lint.config.ts`。
-  - 它会在内存中通过 `defu` 库将默认配置和用户配置进行深层合并。
+- **TypeScript 配置编译 (TS Compilation)**: 如果检测到用户的配置文件是 `.ts` 格式：
+  - 会自动调用内置的 TypeScript 编译器将其转译为 `.mjs` 模块。
+  - 转译后的文件被保存在缓存目录（如 `.cache/rhine-lint/rhine-lint.user-config.mjs`）。
+  - 生成的 ESLint 配置会指向这个编译后的 JS 文件，从而解决 Node.js 原生无法加载 TS 文件的限制。
+- **智能缓存 (Smart Caching)**: 为了提高性能（尤其是 IDE 保存自动修复时），我们实现了一套基于指纹的缓存机制：
+  - **指纹计算**: 每次运行前会计算一个 SHA-256 哈希，包含：`package.json` 版本 + CLI 参数 + 用户配置文件内容 + `.gitignore` 状态。
+  - **极速命中**: 如果指纹与缓存的 `metadata.json` 匹配，则**完全跳过**繁重的转译、合并和文件写入操作，直接复用上次的配置。
+- **JIT 加载**: 除了上述静态编译，对于部分模块加载我们使用 `jiti` 确保兼容性。
 - **关键点**: 这种设计使得 `rhine-lint` 内部的依赖（如 `eslint-plugin-react`）可以被正确解析，而不需要用户显式安装它们。
 
 #### 规则资产 (`src/assets/`)

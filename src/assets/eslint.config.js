@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import nextPlugin from '@next/eslint-plugin-next'
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
-import { fixupConfigRules } from '@eslint/compat'
 
 import css from '@eslint/css'
 
@@ -15,7 +14,6 @@ import css from '@eslint/css'
 // ...
 
 
-import { FlatCompat } from '@eslint/eslintrc'
 import js from '@eslint/js'
 import json from '@eslint/json'
 import markdown from '@eslint/markdown'
@@ -29,9 +27,6 @@ import tseslint from 'typescript-eslint'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
 
 const globalConfig = defineConfig([
   {

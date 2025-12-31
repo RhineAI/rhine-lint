@@ -17,6 +17,7 @@ cli
     .option("--config <path>", "Path to config file")
     .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
+    .option("--debug", "Enable debug mode")
     .action(async (files: string[], options: any) => {
         const cwd = process.cwd();
         // If files is empty, default to "."
@@ -39,7 +40,7 @@ cli
             console.log();
 
             // 2. Generate Temp Configs
-            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir);
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug);
             usedCachePath = temps.cachePath; // Save for cleanup
 
             // 3. Run ESLint

@@ -1,14 +1,15 @@
 import { defu } from "defu";
+import { createJiti } from "jiti";
 import path from "node:path";
 import fs from "fs-extra";
 import { type Config } from "../config.js";
 import { logger, logInfo } from "../utils/logger.js";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
-
-
+const pkg = require('../../package.json');
 
 function getAssetPath(filename: string) {
     return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../assets", filename);
@@ -27,69 +28,40 @@ const CONFIG_FILENAMES = [
     "config/rhine-lint.config.json",
 ];
 
-export async function loadUserConfig(cwd: string): Promise<{ config: Config, path?: string }> {
-    let configPath: string | undefined;
-
-    for (const file of CONFIG_FILENAMES) {
-        const p = path.join(cwd, file);
-        if (await fs.pathExists(p)) {
-            configPath = p;
-            break;
-        }
-    }
-
-    if (!configPath) {
-        return { config: {} };
-    }
-
-    try {
-        // logInfo(`Loading config from ${configPath}`);
-        const isJson = configPath.endsWith(".json");
-        let loaded: any;
-        if (isJson) {
-            loaded = await fs.readJson(configPath);
-        } else {
-            const importUrl = pathToFileURL(configPath).href;
-            const mod = await import(importUrl);
-            loaded = mod.default || mod;
-        }
-
-        return {
-            config: (loaded as Config) || {},
-            path: configPath
-        };
-    } catch (e) {
-        logger.debug("Failed to load user config.", e);
-        logger.warn(`Found config file at ${configPath} but failed to load it.`);
-        return { config: {} };
-    }
+function getCacheDir(cwd: string, userConfig?: Config, cliCacheDir?: string): string {
+    if (cliCacheDir) return path.resolve(cwd, cliCacheDir);
+    if (userConfig?.cacheDir) return path.resolve(cwd, userConfig.cacheDir);
+    const nodeModulesPath = path.join(cwd, "node_modules");
+    if (fs.existsSync(nodeModulesPath)) return path.join(nodeModulesPath, ".cache", "rhine-lint");
+    return path.join(cwd, ".cache", "rhine-lint");
 }
 
-function getCacheDir(cwd: string, userConfig?: Config, cliCacheDir?: string): string {
-    // 1. CLI option
-    if (cliCacheDir) {
-        return path.resolve(cwd, cliCacheDir);
+export async function loadUserConfig(cwd: string): Promise<{ config: Config, path?: string }> {
+    const jiti = createJiti(fileURLToPath(import.meta.url));
+    for (const filename of CONFIG_FILENAMES) {
+        const configPath = path.join(cwd, filename);
+        if (await fs.pathExists(configPath)) {
+            try {
+                const configModule = jiti(configPath);
+                const config = configModule.default || configModule;
+                logInfo(`Using config file: ${configPath}`);
+                return { config, path: configPath };
+            } catch (e) {
+                logger.error(`Failed to load config file ${configPath}:`, e);
+                process.exit(1);
+            }
+        }
     }
-    // 2. Config option
-    if (userConfig?.cacheDir) {
-        return path.resolve(cwd, userConfig.cacheDir);
-    }
-
-    // 3. Default: node_modules/.cache/rhine-lint
-    const nodeModulesPath = path.join(cwd, "node_modules");
-    if (fs.existsSync(nodeModulesPath)) {
-        return path.join(nodeModulesPath, ".cache", "rhine-lint");
-    }
-
-    // 4. Fallback: .cache/rhine-lint in root
-    return path.join(cwd, ".cache", "rhine-lint");
+    logInfo("No config file found, using default configuration.");
+    return { config: {} };
 }
 
 export async function generateTempConfig(
     cwd: string,
     userConfigResult: { config: Config, path?: string },
     cliLevel?: string,
-    cliCacheDir?: string
+    cliCacheDir?: string,
+    debug?: boolean
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -97,26 +69,163 @@ export async function generateTempConfig(
 
     const eslintTempPath = path.join(cachePath, "eslint.config.mjs");
     const prettierTempPath = path.join(cachePath, "prettier.config.mjs");
+    const metaPath = path.join(cachePath, "metadata.json");
+    const gitignorePath = path.join(cwd, ".gitignore");
+
+    let calculatedHash = "";
+    try {
+        const hash = createHash("sha256");
+        hash.update(pkg.version || "0.0.0");
+        hash.update(cliLevel || "default");
+        if (userConfigResult.path && await fs.pathExists(userConfigResult.path)) {
+            const content = await fs.readFile(userConfigResult.path);
+            hash.update(content);
+        }
+        if (await fs.pathExists(gitignorePath)) {
+            const content = await fs.readFile(gitignorePath);
+            hash.update(content);
+        } else {
+            hash.update("no-gitignore");
+        }
+        calculatedHash = hash.digest("hex");
+
+        if (await fs.pathExists(metaPath)) {
+            const meta = await fs.readJson(metaPath);
+            if (meta.hash === calculatedHash && await fs.pathExists(eslintTempPath) && await fs.pathExists(prettierTempPath)) {
+                logger.debug(`Cache hit! Configs reused from ${cachePath}`);
+                return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath };
+            }
+        }
+    } catch (e) {
+        logger.debug("Cache check failed, regenerating...", e);
+    }
+
+    let ignoredPatterns: string[] = [];
+
+    // Use Absolute Paths for ignores to avoid relative path hell from .cache dir.
+    // ESLint Flat Config supports absolute paths in ignores.
+
+    const toRelativeGlob = (p: string) => {
+        // 1. Invert negation logic
+        // gitignore: "node_modules" -> Ignore.
+        // gitignore-to-glob: "!node_modules" (if excludes logic used, but actually let's check raw lines?)
+        // Wait, if gitignore-to-glob is simple parser, it keeps "node_modules".
+        // If it returns "node_modules", then p="node_modules".
+        // ESLint ignores: "node_modules".
+        // If gitignore: "!foo", lib returns "!foo". ESLint: "!foo" (Unignore).
+        // SO: if p does NOT start with !, it is an ignore. Return as is.
+        // if p starts with !, it is un-ignore. Return as is.
+        // WAIT. My previous analysis of "!" inversion was based on observed behavior of lib returning "!" for ignores?
+        // The logs showed "!C:/..." for ignores.
+        // So YES, the lib returns "!" for ignores.
+        // So we MUST strip "!" to get the pattern to Ignore.
+
+        const isActuallyIgnore = p.startsWith('!');
+        let clean = isActuallyIgnore ? p.slice(1) : p;
+
+        // 2. Identify recursion/rooting validity
+        // Check if original pattern (clean) was rooted
+        const isRooted = clean.startsWith('/') || clean.startsWith('\\');
+
+        // Strip leading slashes
+        clean = clean.replace(/^[\/\\]/, '');
+        clean = clean.replace(/\\/g, '/');
+
+        // 3. Check for directory (using absolute path for check)
+        const abs = path.join(cwd, clean);
+        let isDir = false;
+        try {
+            // Only check if no wildcard to avoid FS errors
+            if (clean && !clean.includes('*') && !path.extname(clean)) {
+                if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) isDir = true;
+            }
+        } catch (e) { }
+
+        // Append /** for directories to ignore contents
+        if (isDir && !clean.endsWith('/')) {
+            clean += '/**';
+        } else if (clean.endsWith('/')) {
+            clean += '**';
+        }
+
+        // 4. Construct Relative Path
+        // If rooted, anchor to ../../
+        // If recursive, anchor to ../../**/
+        let rel = '';
+        if (isRooted) {
+            rel = '../../' + clean;
+        } else {
+            // If pattern already has **, don't add another? 
+            // But ../../ is needed.
+            // If pattern is "dist/**", we want "../../**/dist/**" if recursive?
+            // Or "../../dist/**" if rooted?
+            // Assuming recursive if not rooted.
+            rel = '../../**/' + clean;
+        }
+
+        // 5. Apply negation (If isActuallyIgnore is true, we want Ignore, so NO '!'. If false, we want Unignore, so '!')
+        // Logic: 
+        // Lib: !foo -> Ignore foo.  ESLint: foo
+        // Lib: foo -> Unignore foo. ESLint: !foo
+        // So: return (isActuallyIgnore ? '' : '!') + rel;
+
+        return (isActuallyIgnore ? '' : '!') + rel;
+    };
+
+    const projectDefaults = [
+        'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
+    ].map(dir => {
+        // These are recursive defaults
+        return `../../**/${dir}/**`;
+    });
+
+    if (await fs.pathExists(gitignorePath)) {
+        try {
+            const gitignoreToGlob = require("gitignore-to-glob");
+            const rawPatterns: string[] = gitignoreToGlob(gitignorePath) || [];
+            const parsedGitignores = rawPatterns
+                .map(p => p.trim())
+                .filter(p => p && !p.startsWith('#'))
+                .map(p => toRelativeGlob(p));
+            ignoredPatterns = [...projectDefaults, ...parsedGitignores];
+        } catch (e) {
+            logger.debug("Failed to parse .gitignore", e);
+            ignoredPatterns = projectDefaults;
+        }
+    } else {
+        ignoredPatterns = projectDefaults;
+    }
+
+    if (debug) {
+        console.log("-----------------------------------------");
+        console.log("DEBUG: Final Ignores List (Relative Paths):");
+        ignoredPatterns.forEach(p => console.log(p));
+        console.log("-----------------------------------------");
+    }
+
 
     const defaultEslintPath = pathToFileURL(getAssetPath("eslint.config.js")).href;
     const defaultPrettierPath = pathToFileURL(getAssetPath("prettier.config.js")).href;
-
     const userConfigUrl = userConfigResult.path ? pathToFileURL(userConfigResult.path).href : null;
     const defuUrl = pathToFileURL(require.resolve("defu")).href;
     const jitiUrl = pathToFileURL(require.resolve("jiti")).href;
 
-    // Resolve @eslint/compat for includeIgnoreFile if needed
-    // We assume @eslint/compat is installed as dependency of rhine-lint
-    let compatUrl: string | null = null;
-    try {
-        compatUrl = pathToFileURL(require.resolve("@eslint/compat")).href;
-    } catch (e) {
-        // ignore
+    let finalUserConfigUrl = userConfigUrl;
+    if (userConfigResult.path && (userConfigResult.path.endsWith('.ts') || userConfigResult.path.endsWith('.mts') || userConfigResult.path.endsWith('.cts'))) {
+        try {
+            const ts = await import('typescript');
+            const fileContent = await fs.readFile(userConfigResult.path, 'utf-8');
+            const transpiled = ts.transpileModule(fileContent, {
+                compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext }
+            });
+            const compiledName = 'rhine-lint.user-config.mjs';
+            const compiledPath = path.join(cachePath, compiledName);
+            await fs.writeFile(compiledPath, transpiled.outputText);
+            finalUserConfigUrl = pathToFileURL(compiledPath).href;
+        } catch (e) {
+            logger.debug("Failed to transpile user config.", e);
+        }
     }
-
-    const gitignorePath = path.join(cwd, ".gitignore");
-    const hasGitignore = await fs.pathExists(gitignorePath);
-    const gitignoreUrl = hasGitignore ? pathToFileURL(gitignorePath).href : null;
 
     const isEslintOverlay = userConfigResult.config.eslint?.overlay ?? false;
     const isPrettierOverlay = userConfigResult.config.prettier?.overlay ?? false;
@@ -127,14 +236,12 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import createConfig from "${defaultEslintPath}";
 import { defu } from "${defuUrl}";
-${compatUrl && hasGitignore ? `import { includeIgnoreFile } from "${compatUrl}";` : ''}
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const jiti = createJiti(__filename);
 
-${userConfigUrl ? `
-const loaded = await jiti.import("${userConfigUrl.replace('file:///', '').replace(/%20/g, ' ')}", { default: true });
+${finalUserConfigUrl ? `
+const loaded = await jiti.import("${finalUserConfigUrl.replace('file:///', '').replace(/%20/g, ' ')}", { default: true });
 const userOne = loaded.default || loaded;
 ` : 'const userOne = {};'}
 
@@ -150,13 +257,11 @@ switch (level) {
 }
 
 const defaultEslint = createConfig(overrides);
-
 let finalConfig;
-
-// Prepend ignore file if exists
 const prefixConfig = [];
-${compatUrl && hasGitignore && gitignoreUrl ? `
-prefixConfig.push(includeIgnoreFile("${gitignoreUrl.replace('file:///', '').replace(/%20/g, ' ')}"));
+
+${ignoredPatterns.length > 0 ? `
+prefixConfig.push({ ignores: ${JSON.stringify(ignoredPatterns)} });
 ` : ''}
 
 if (${isEslintOverlay} || userEslint.overlay) {
@@ -164,7 +269,6 @@ if (${isEslintOverlay} || userEslint.overlay) {
         finalConfig = [...prefixConfig, ...defaultEslint, ...userEslint.config];
     } else {
         finalConfig = defu(userEslint, defaultEslint); 
-        // Note: merging object into array-based config is weird, assume flat config array concatenation for robustness
         if (!Array.isArray(finalConfig)) finalConfig = [...prefixConfig, finalConfig];
     }
 } else {
@@ -203,16 +307,13 @@ export default finalConfig;
 
     await fs.writeFile(eslintTempPath, eslintContent);
     await fs.writeFile(prettierTempPath, prettierContent);
+    await fs.writeJson(metaPath, { hash: calculatedHash, timestamp: Date.now() });
 
     return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath };
 }
 
 export async function cleanup(cachePath: string) {
     if (cachePath && await fs.pathExists(cachePath)) {
-        // Safety check: ensure we are deleting a temp dir we own
-        // If it's node_modules/.cache/rhine-lint, delete it
-        // If it's custom, delete it (careful?)
-        // Generally standard to remove temp config dir.
-        await fs.remove(cachePath);
+        // await fs.remove(cachePath); 
     }
 }

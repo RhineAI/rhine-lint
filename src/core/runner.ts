@@ -1,46 +1,89 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import path from "node:path";
+import fs from "fs-extra";
 import { logger, logInfo, logError } from "../utils/logger.js";
 
+const require = createRequire(import.meta.url);
 
-
-const IS_BUN = typeof process.versions.bun !== "undefined";
-const EXECUTOR = IS_BUN ? "bunx" : "npx";
-
-// Helper to strip ANSI codes for easier regex matching
 function stripAnsi(str: string) {
     return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
+
+/**
+ * Robustly resolve a binary path from a package, handling exports restrictions.
+ */
+function resolveBin(pkgName: string, binPathRelative: string): string {
+    // 1. Try strict resolve (fastest, but might be blocked by exports)
+    try {
+        return require.resolve(`${pkgName}/${binPathRelative}`);
+    } catch (e: any) {
+        if (e.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED' && e.code !== 'MODULE_NOT_FOUND') {
+            logger.debug(`Resolve error for ${pkgName}/${binPathRelative}:`, e);
+        }
+    }
+
+    // 2. Fallback: Resolve main entry point, then traverse up to find package root
+    try {
+        const mainPath = require.resolve(pkgName);
+        let currentDir = path.dirname(mainPath);
+
+        // Traverse up (max 5 levels) to find package.json
+        for (let i = 0; i < 5; i++) {
+            const pkgJsonPath = path.join(currentDir, "package.json");
+            if (fs.existsSync(pkgJsonPath)) {
+                try {
+                    const pkg = fs.readJsonSync(pkgJsonPath);
+                    if (pkg.name === pkgName) {
+                        // Found it! Construct bin path
+                        const binPath = path.join(currentDir, binPathRelative);
+                        if (fs.existsSync(binPath)) {
+                            return binPath;
+                        }
+                    }
+                } catch {
+                    // Ignore parsing errors
+                }
+            }
+            if (currentDir === path.dirname(currentDir)) break; // Root reached
+            currentDir = path.dirname(currentDir);
+        }
+    } catch (e: any) {
+        logger.debug(`Deep resolve failed for ${pkgName}:`, e);
+    }
+
+    // 3. Fallback to system PATH (bare command)
+    return pkgName;
+}
+
 
 export async function runCommandWithOutput(command: string, args: string[], cwd: string): Promise<{ output: string, code: number }> {
     return new Promise((resolve, reject) => {
         logger.debug(`Executing: ${command} ${args.join(" ")}`);
         const proc = spawn(command, args, {
             cwd,
-            stdio: ["inherit", "pipe", "pipe"], // Pipe stdout/stderr so we can read it
-            shell: true,
+            stdio: ["inherit", "pipe", "pipe"],
+            shell: false,
         });
 
         let output = "";
 
         if (proc.stdout) {
             proc.stdout.on("data", (data) => {
-                process.stdout.write(data); // Passthrough to console
+                process.stdout.write(data);
                 output += data.toString();
             });
         }
 
         if (proc.stderr) {
             proc.stderr.on("data", (data) => {
-                process.stderr.write(data); // Passthrough to console
+                process.stderr.write(data);
                 output += data.toString();
             });
         }
 
         proc.on("close", (code) => {
-            // Resolve all exit codes (even 1 or 2 or others) so we can parse output.
-            // But we might want to differentiate "crash" vs "lint failure".
-            // ESLint exit code 1 = user lint error. code 2 = config/crash error.
-            if (code === null) code = 1; // Default to error if null
+            if (code === null) code = 1;
             resolve({ output, code });
         });
 
@@ -50,94 +93,85 @@ export async function runCommandWithOutput(command: string, args: string[], cwd:
     });
 }
 
-// Return type: null means success (no errors), string means summary of errors/warnings
 export async function runEslint(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]): Promise<string | null> {
     logInfo("Running ESLint...");
     console.log();
+
+    const eslintBin = resolveBin("eslint", "bin/eslint.js");
+
     const args = [
-        "eslint",
+        eslintBin,
         ...files,
         "--config", configPath,
         ...(fix ? ["--fix"] : []),
     ];
 
     try {
-        const { output, code } = await runCommandWithOutput(EXECUTOR, args, cwd);
+        const { output, code } = await runCommandWithOutput(process.execPath, args, cwd);
 
-        if (!output.endsWith('\n')) {
-            console.log();
-        }
-
-        const cleanOutput = stripAnsi(output);
-
-        // Try to match standard ESLint summary: "✖ 5 problems (5 errors, 0 warnings)"
-        const match = cleanOutput.match(/✖ (\d+) problems? \((\d+) errors?, (\d+) warnings?\)/);
-        if (match) {
-            return `${match[1]} problems (${match[2]} errors, ${match[3]} warnings)`;
-        }
-
-        // Check if there are errors but no summary line
-        if (cleanOutput.includes("error") || cleanOutput.includes("warning")) {
-            // Maybe custom format or specific error
-            // Try to count occurences of "error"
-            const errorCount = (cleanOutput.match(/error/gi) || []).length;
-            if (errorCount > 0) return `${errorCount} issues found`;
-
-            return "Issues found";
-        }
-
-        // Key Fix: If exit code is non-zero and we haven't found a "summary" above, it's a crash or unparsed error.
-        if (code !== 0) {
+        if (code !== 0 && code !== 1) {
             return `Process failed with exit code ${code}`;
         }
 
-        return null;
-    } catch (e) {
-        logError("ESLint execution failed.", e);
-        throw e;
+        const cleanOutput = stripAnsi(output);
+        const problemMatch = cleanOutput.match(/(\d+) problems? \((\d+) errors?, (\d+) warnings?\)/);
+        if (problemMatch) {
+            return problemMatch[0];
+        }
+        const errorMatch = cleanOutput.match(/(\d+) error/);
+        if (errorMatch) {
+            return `${errorMatch[0]} found`;
+        }
+        if (code === 0) return null;
+        return "Issues found";
+
+    } catch (e: any) {
+        logError("Failed to run ESLint", e);
+        return e.message || "Unknown error";
     }
 }
 
 export async function runPrettier(cwd: string, configPath: string, fix: boolean, files: string[] = ["."]): Promise<string | null> {
     logInfo("Running Prettier...");
-    console.log();
+
+    // Try Prettier v3 path first, then fallback (v3: bin/prettier.cjs, v2: bin-prettier.js)
+    let prettierBin = resolveBin("prettier", "bin/prettier.cjs");
+    // If resolved to "prettier" (PATH) or logic failed, check if file exists, if not try legacy
+    // Actually resolveBin returns bare "prettier" if not found.
+    // If it is just "prettier", we might want to try legacy path too before giving up.
+    if (prettierBin === "prettier" || !fs.existsSync(prettierBin)) {
+        const legacy = resolveBin("prettier", "bin-prettier.js");
+        if (legacy !== "prettier" && fs.existsSync(legacy)) {
+            prettierBin = legacy;
+        }
+    }
+
     const args = [
-        "prettier",
-        ...files,
-        "--config", configPath,
+        prettierBin,
         ...(fix ? ["--write"] : ["--check"]),
+        "--config", configPath,
+        "--ignore-path", ".gitignore",
+        ...files
     ];
 
     try {
-        const { output, code } = await runCommandWithOutput(EXECUTOR, args, cwd);
+        const { output, code } = await runCommandWithOutput(process.execPath, args, cwd);
 
-        if (!output.endsWith('\n')) {
-            console.log();
-        }
-
-        const cleanOutput = stripAnsi(output);
-
-        if (!fix) {
-            // In check mode with issues: "Code style issues found in 2 files"
-            const match = cleanOutput.match(/Code style issues found in (\d+) files?/);
-            if (match) {
-                return `${match[1]} unformatted files`;
-            }
-            if (cleanOutput.includes("[warn]")) {
-                return "Style issues found";
-            }
-        }
-
-        // Prettier specific: exit code 2 usually means error/crash. code 1 (in check mode) means unformatted.
         if (code !== 0) {
-            if (fix && code !== 0) return `Process failed with exit code ${code}`;
-            // In check mode code 1 is covered above usually, but if fallback:
-            return "Style issues found";
+            if (!fix) {
+                if (stripAnsi(output).includes("Code style issues found")) {
+                    return "Code style issues found";
+                }
+                if (code === 1) return "Formatting issues found";
+            }
+
+            return `Process failed with exit code ${code}`;
         }
 
         return null;
-    } catch (e) {
-        logError("Prettier execution failed.", e);
-        throw e;
+
+    } catch (e: any) {
+        logError("Failed to run Prettier", e);
+        return e.message || "Unknown error";
     }
 }
