@@ -1,6 +1,6 @@
 {
   "name": "rhine-lint",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "module": "./dist/index.js",
   "type": "module",
   "main": "./dist/index.js",

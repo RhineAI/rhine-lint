@@ -16,6 +16,12 @@ export type Config = {
      * @default './tsconfig.json' (or './tsconfig.app.json' if exists)
      */
     tsconfig?: string,
+    /**
+     * Additional ignore patterns to exclude files from linting.
+     * Patterns follow glob syntax.
+     * @example ['temp', 'generated', '*.test.ts']
+     */
+    ignore?: string[],
     eslint?: {
         config?: [
             // EsLint Config

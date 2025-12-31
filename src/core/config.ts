@@ -63,7 +63,9 @@ export async function generateTempConfig(
     cliCacheDir?: string,
     debug?: boolean,
     cliProjectTypeCheck?: boolean,
-    cliTsconfig?: string
+    cliTsconfig?: string,
+    cliIgnorePatterns: string[] = [],
+    noIgnore: boolean = false
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -88,6 +90,8 @@ export async function generateTempConfig(
         hash.update(cliLevel || "default");
         hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
         hash.update(tsconfigPath || "default-tsconfig");
+        hash.update(cliIgnorePatterns.join(",") || "no-cli-ignore");
+        hash.update(noIgnore ? "no-ignore" : "with-ignore");
         if (userConfigResult.path && await fs.pathExists(userConfigResult.path)) {
             const content = await fs.readFile(userConfigResult.path);
             hash.update(content);
@@ -113,114 +117,147 @@ export async function generateTempConfig(
 
     let ignoredPatterns: string[] = [];
 
-    // Parse .gitignore file and convert to ESLint ignore patterns
-    // ESLint ignores are relative to the cwd where ESLint runs (which is the project root)
-    // NOT relative to the config file location
-    const parseGitignore = (content: string): string[] => {
-        const patterns: string[] = [];
-        const lines = content.split('\n');
+    // If --no-ignore is set, skip all ignore processing
+    if (!noIgnore) {
+        // Parse .gitignore file and convert to ESLint ignore patterns
+        // ESLint ignores are relative to the cwd where ESLint runs (which is the project root)
+        // NOT relative to the config file location
+        const parseGitignore = (content: string): string[] => {
+            const patterns: string[] = [];
+            const lines = content.split('\n');
 
-        for (let line of lines) {
-            // Remove Windows line endings and trim
-            line = line.replace(/\r$/, '').trim();
+            for (let line of lines) {
+                // Remove Windows line endings and trim
+                line = line.replace(/\r$/, '').trim();
 
-            // Skip empty lines and comments
-            if (!line || line.startsWith('#')) continue;
+                // Skip empty lines and comments
+                if (!line || line.startsWith('#')) continue;
 
-            // Handle negation (un-ignore)
-            const isNegation = line.startsWith('!');
-            if (isNegation) {
-                line = line.slice(1);
-            }
-
-            // Determine if pattern is rooted (starts with /)
-            const isRooted = line.startsWith('/');
-            if (isRooted) {
-                line = line.slice(1);
-            }
-
-            // Normalize path separators
-            line = line.replace(/\\/g, '/');
-
-            // Handle directory patterns (ends with /)
-            const isDir = line.endsWith('/');
-            if (isDir) {
-                line = line.slice(0, -1);
-            }
-
-            // Build the ESLint ignore pattern
-            // Patterns are relative to the cwd where ESLint runs (project root)
-            let pattern: string;
-
-            if (isRooted) {
-                // Rooted patterns: only match at project root
-                // e.g., /node_modules -> node_modules/**
-                pattern = line;
-            } else {
-                // Non-rooted patterns: match anywhere in the tree
-                // e.g., .next -> **/.next/**
-                pattern = `**/${line}`;
-            }
-
-            // Add /** suffix for directories and patterns that should match all contents
-            if (isDir || !line.includes('*')) {
-                // Check if it's likely a directory (no extension or common directory names)
-                const shouldMatchContents = isDir ||
-                    !path.extname(line) ||
-                    line.endsWith('.next') ||
-                    line.endsWith('.git') ||
-                    line.endsWith('.cache');
-
-                if (shouldMatchContents && !pattern.endsWith('/**')) {
-                    pattern += '/**';
+                // Handle negation (un-ignore)
+                const isNegation = line.startsWith('!');
+                if (isNegation) {
+                    line = line.slice(1);
                 }
+
+                // Determine if pattern is rooted (starts with /)
+                const isRooted = line.startsWith('/');
+                if (isRooted) {
+                    line = line.slice(1);
+                }
+
+                // Normalize path separators
+                line = line.replace(/\\/g, '/');
+
+                // Handle directory patterns (ends with /)
+                const isDir = line.endsWith('/');
+                if (isDir) {
+                    line = line.slice(0, -1);
+                }
+
+                // Build the ESLint ignore pattern
+                // Patterns are relative to the cwd where ESLint runs (project root)
+                let pattern: string;
+
+                if (isRooted) {
+                    // Rooted patterns: only match at project root
+                    // e.g., /node_modules -> node_modules/**
+                    pattern = line;
+                } else {
+                    // Non-rooted patterns: match anywhere in the tree
+                    // e.g., .next -> **/.next/**
+                    pattern = `**/${line}`;
+                }
+
+                // Add /** suffix for directories and patterns that should match all contents
+                if (isDir || !line.includes('*')) {
+                    // Check if it's likely a directory (no extension or common directory names)
+                    const shouldMatchContents = isDir ||
+                        !path.extname(line) ||
+                        line.endsWith('.next') ||
+                        line.endsWith('.git') ||
+                        line.endsWith('.cache');
+
+                    if (shouldMatchContents && !pattern.endsWith('/**')) {
+                        pattern += '/**';
+                    }
+                }
+
+                // Apply negation prefix for ESLint if this was an un-ignore pattern
+                if (isNegation) {
+                    pattern = '!' + pattern;
+                }
+
+                patterns.push(pattern);
             }
 
-            // Apply negation prefix for ESLint if this was an un-ignore pattern
-            if (isNegation) {
-                pattern = '!' + pattern;
+            return patterns;
+        };
+
+        // Default directories to always ignore (relative to project root)
+        const defaultIgnores = [
+            'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
+        ].map(dir => `**/${dir}/**`);
+
+        if (await fs.pathExists(gitignorePath)) {
+            try {
+                const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+
+                if (debug) {
+                    console.log("-----------------------------------------");
+                    console.log("DEBUG: .gitignore content preview:");
+                    console.log(gitignoreContent.substring(0, 500));
+                    console.log("-----------------------------------------");
+                }
+
+                const parsedPatterns = parseGitignore(gitignoreContent);
+
+                if (debug) {
+                    console.log("-----------------------------------------");
+                    console.log("DEBUG: Parsed gitignore patterns:");
+                    parsedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
+                    console.log("-----------------------------------------");
+                }
+
+                // Merge defaults with parsed patterns, removing duplicates
+                const allPatterns = [...defaultIgnores, ...parsedPatterns];
+                ignoredPatterns = [...new Set(allPatterns)];
+            } catch (e) {
+                logger.debug("Failed to parse .gitignore", e);
+                ignoredPatterns = defaultIgnores;
             }
-
-            patterns.push(pattern);
-        }
-
-        return patterns;
-    };
-
-    // Default directories to always ignore (relative to project root)
-    const defaultIgnores = [
-        'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
-    ].map(dir => `**/${dir}/**`);
-
-    if (await fs.pathExists(gitignorePath)) {
-        try {
-            const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-
-            if (debug) {
-                console.log("-----------------------------------------");
-                console.log("DEBUG: .gitignore content preview:");
-                console.log(gitignoreContent.substring(0, 500));
-                console.log("-----------------------------------------");
-            }
-
-            const parsedPatterns = parseGitignore(gitignoreContent);
-
-            if (debug) {
-                console.log("-----------------------------------------");
-                console.log("DEBUG: Parsed gitignore patterns:");
-                parsedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
-                console.log("-----------------------------------------");
-            }
-
-            // Merge defaults with parsed patterns, removing duplicates
-            const allPatterns = [...defaultIgnores, ...parsedPatterns];
-            ignoredPatterns = [...new Set(allPatterns)];
-        } catch (e) {
-            logger.debug("Failed to parse .gitignore", e);
+        } else {
             ignoredPatterns = defaultIgnores;
         }
-    } else {
-        ignoredPatterns = defaultIgnores;
+
+        // Add CLI ignore patterns
+        const configIgnorePatterns = userConfigResult.config.ignore || [];
+        const allCliPatterns = [...cliIgnorePatterns, ...configIgnorePatterns];
+        if (allCliPatterns.length > 0) {
+            // Normalize CLI patterns (add **/ prefix and /** suffix if needed)
+            const normalizedCliPatterns = allCliPatterns.map(pattern => {
+                // If pattern doesn't start with ** or !, add **/ prefix
+                if (!pattern.startsWith('**') && !pattern.startsWith('!')) {
+                    pattern = `**/${pattern}`;
+                }
+                // If pattern doesn't end with /** and doesn't contain *, add /** suffix
+                if (!pattern.endsWith('/**') && !pattern.includes('*')) {
+                    pattern = `${pattern}/**`;
+                }
+                return pattern;
+            });
+            ignoredPatterns = [...new Set([...ignoredPatterns, ...normalizedCliPatterns])];
+
+            if (debug) {
+                console.log("-----------------------------------------");
+                console.log("DEBUG: CLI/Config ignore patterns added:");
+                normalizedCliPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
+                console.log("-----------------------------------------");
+            }
+        }
+    } else if (debug) {
+        console.log("-----------------------------------------");
+        console.log("DEBUG: --no-ignore flag set, skipping all ignore rules");
+        console.log("-----------------------------------------");
     }
 
     if (debug) {
