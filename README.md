@@ -6,25 +6,22 @@
   <img src="https://img.shields.io/badge/style-opinionated-blue?style=flat-square" alt="style" />
 </p>
 
-> **现在的 Web 开发中，配置 ESLint、Prettier、TypeScript 以及各种插件（React, Next.js, CSS, Markdown...）往往是一场噩梦。**
-> 重复的样板代码、版本冲突、复杂的 Flat Config 迁移... **Rhine Lint** 旨在结束这一切。
-
 **Rhine Lint** 是一个「零配置」的现代化代码规范解决方案。它深度整合了 **ESLint (v9 Flat Config)** 与 **Prettier**，为你提供开箱即用的最佳实践。你无需再手动安装数十个 `eslint-plugin-*` 依赖，也无需编写数百行的配置文件。只需一个依赖，一行命令，即可获得顶级的代码质量守护。
 
-## ✨ 特性 (Features)
+## 特性 Features
 
-- **⚡️ 零配置启动 (Zero Config)**: 默认提供适用于 TypeScript、React、Next.js 的最佳实践配置，安装即用。
-- **🛠️ 统一工具链 (Unified Toolchain)**: 一个 `rl` 命令同时执行代码检查 (Lint) 和代码格式化 (Format)。
-- **🏗️ 全栈支持 (Full Stack)**:
+- **零配置启动 Zero Config**: 默认提供适用于 TypeScript、React、Next.js 的最佳实践配置，安装即用。
+- **统一工具链 Unified Toolchain**: 一个 `rl` 命令同时执行代码检查 (Lint) 和代码格式化 (Format)。
+- **全栈支持 Full Stack**:
   - **JavaScript / TypeScript**: 完整的类型检查支持。
   - **Frontend**: React (v18/v19), React Hooks, JSX A11y.
   - **Frameworks**: Next.js (Pages & App Router).
   - **Styles**: CSS, SCSS format supports.
   - **Others**: JSON, Markdown support.
-- **🔧 智能配置生成 (Smart Config)**: 运行时动态生成配置文件，无需担心 ESLint/Prettier 配置文件污染项目根目录。
-- **🧩 灵活扩展 (Extensible)**: 支持 `rhine-lint.config.ts` 进行规则覆盖或深度定制。
+- **智能配置生成 Smart Config**: 运行时动态生成配置文件，无需担心 ESLint/Prettier 配置文件污染项目根目录。
+- **灵活扩展 Extensible**: 支持 `rhine-lint.config.ts` 进行规则覆盖或深度定制。
 
-## 📦 安装 (Installation)
+## 安装 Installation
 
 在你的项目中作为开发依赖安装：
 
@@ -42,7 +39,7 @@ pnpm add -D rhine-lint
 yarn add -D rhine-lint
 ```
 
-## 🚀 快速开始 (Quick Start)
+## 快速开始 Quick Start
 
 ### 命令行使用 (CLI)
 
@@ -75,7 +72,7 @@ npx rl --level nextjs
 }
 ```
 
-## ⚙️ 配置 (Configuration)
+## 配置 Configuration
 
 虽然 Rhine Lint 是零配置的，但也支持通过配置文件进行深度定制。它会自动检测项目根目录下的 `rhine-lint.config.{ts,js,mjs,json}`。
 
@@ -90,7 +87,10 @@ export default {
   level: 'nextjs',
 
   // 是否默认开启修复模式 (可选)
-  fix: false,
+  fix: false, 
+  
+  // 自定义缓存目录 (可选)
+  // cacheDir: './.cache/rhine-lint',
 
   // ESLint 专项配置
   eslint: {
@@ -110,6 +110,7 @@ export default {
           'react/no-unknown-property': 'off'
         }
       }
+      ...
     ]
   },
 
@@ -117,7 +118,8 @@ export default {
   prettier: {
     config: {
       printWidth: 100,
-      semi: true
+      semi: true,
+      ...
     }
   }
 } as Config;
@@ -132,7 +134,19 @@ CLI 参数优先级高于配置文件：
 - `--level <level>`: 强制指定项目类型（`js`, `ts`, `frontend`, `nextjs`）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
 
-## 🔍 项目级别 (Project Levels)
+### 缓存目录 Cache Directory
+
+Rhine Lint 需要一个目录来存放运行时动态生成的 "Virtual Config" 文件。这些文件是临时的，通常不需要用户关心。
+缓存目录的解析优先级如下（由高到低）：
+
+1. **CLI 参数**: 命令行中显式指定 `--cache-dir <path>`。
+2. **配置文件**: `rhine-lint.config.ts` 中的 `cacheDir` 字段。
+3. **默认位置 (标准)**: `node_modules/.cache/rhine-lint`（如果项目中有 `node_modules` 目录）。
+4. **回退位置**: `.cache/rhine-lint`（如果找不到 `node_modules`，则在项目根目录下创建）。
+
+> **注意**: 如果你的项目触发了第 4 种情况（回退位置），建议将 `.cache/` 添加到你的 `.gitignore` 文件中，以免这些临时文件被提交到版本库。正常情况下，Rhine Lint 会在执行结束后尝试清理这些临时文件，但保留在 `.gitignore` 中是更安全的做法。
+
+## 项目级别 Project Levels
 
 Rhine Lint 根据 `level` 参数加载不同的规则集：
 
@@ -141,48 +155,110 @@ Rhine Lint 根据 `level` 参数加载不同的规则集：
 - **`frontend`** (默认): 前端 React 项目。包含 `ts` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
 - **`nextjs`**: Next.js 项目。包含 `frontend` 级别所有规则，加上 `@next/eslint-plugin-next` 的 Core Web Vitals 等规则。
 
-## 🧠 技术实现与原理 (Implementation Details)
+## 技术实现与原理 Implementation Insights
 
-Rhine Lint 不仅仅是一个简单的 ESLint 配置包，它是一个 **Linter Orchestrator (检查器编排工具)**。以下是其内部工作流程，帮助理解它是如何保持项目清洁的。
+本章节详细阐述 **Rhine Lint** 的内部工作机制。如果你希望为本项目贡献代码，或者想深度定制功能，可以通过以下内容快速上手。
 
-### 1. 动态配置生成 (Dynamic Configuration Generation)
-传统的 ESLint 配置共享方式通常要求用户在项目中创建一个 `eslint.config.js` 并 `extend` 一个包。Rhine Lint 采用了不同的策略：**(Virtual Configuration)**。
+Rhine Lint 的核心本质是一个 **Configuration Factory (配置工厂)** 与 **Execution Orchestrator (执行编排器)**。它并没有重写 Linter，而是站在巨人的肩膀上（ESLint & Prettier），通过一层薄封装来解决配置复杂性问题。
 
-当你运行 `rl` 时：
-1.  **读取配置**: 它首先读取用户的 `rhine-lint.config.ts`。
-2.  **生成临时配置**: 在缓存目录（如 `node_modules/.cache/rhine-lint/`）中，它会基于内存中的逻辑动态生成真实的 `eslint.config.mjs` 和 `prettier.config.mjs` 文件。
-    - 这个过程将 `rhine-lint` 内部预设的规则与用户的自定义规则进行合并。
-    - 它自动处理了 `tsconfig.json` 的路径解析、Ignore 文件的合并等复杂逻辑。
-3.  **环境隔离**: 这种方式确保了你的项目根目录不会被各种工具的配置文件弄乱。
+### 1. 核心架构 Core Architecture
 
-### 2. 执行流程 (Execution Flow)
-Rhine Lint 实际上是 ESLint 和 Prettier 之上的一个 **Wrapper**：
+整个执行流程可以分为三个阶段：**初始化 (Init)** -> **生成 (Generate)** -> **执行 (Execute)**。
 
 ```mermaid
-graph LR
-    User[用户执行 rl] --> CLI[CLI Parser (cac)]
-    CLI --> Config[Config Loader]
-    Config --> Gen[Config Generator]
-    Gen --> Cache[写入临时 Config (.cache/)]
+graph TD
+    CLI[src/cli.ts] -->|解析参数| ConfigMgr[src/core/config.ts]
     
-    Cache --> AsyncRun{并发执行}
-    AsyncRun --> ESLint[Spawn: ESLint]
-    AsyncRun --> Prettier[Spawn: Prettier]
+    subgraph Configuration Phase
+    ConfigMgr -->|1. 读取用户配置| UserConfig[rhine-lint.config.ts]
+    ConfigMgr -->|2. 读取内置模板| Assets[src/assets/*.js]
+    ConfigMgr -->|3. 合并与编译| VirtualConfig[生成临时 Config\n.cache/rhine-lint/*.mjs]
+    end
     
-    ESLint --> Output[输出结果]
-    Prettier --> Output
+    subgraph Execution Phase
+    CLI --> Executor[src/core/runner.ts]
+    Executor -->|Spawn Process| ESLint[(ESLint Binary)]
+    Executor -->|Spawn Process| Prettier[(Prettier Binary)]
+    ESLint -.->|读取| VirtualConfig
+    Prettier -.->|读取| VirtualConfig
+    end
+    
+    ESLint -->|Output| Formatter[结果清洗与展示]
+    Prettier -->|Output| Formatter
 ```
 
-- **ESLint 执行**: 调用 `eslint` 二进制文件，指向生成的临时配置文件。利用 ESLint v9 的 Flat Config 系统，实现了极快的文件匹配和规则计算。
-- **Prettier 执行**: 调用 `prettier` 二进制文件，同样指向临时配置文件。
-- **结果聚合**: `rl` 会捕获子进程的输出流，进行清洗和格式化，最终以统一的格式呈现给用户。如果任一工具报错，`rl` 也会以非零状态码退出，确保 CI/CD 流程的正确性。
+### 2. 模块详解 Module Deep Dive
 
-### 3. 技术栈 (Tech Stack)
-- **Runtime**: Node.js (支持 ESM).
-- **ESLint v9**: 全面拥抱 Flat Config，不再支持旧版 `.eslintrc`。
-- **Prettier**: 强固的代码格式化。
-- **TypeScript-ESLint**: 最新的 TS 解析器和规则插件。
-- **Core Plugins**: 集成了 `eslint-plugin-react`, `eslint-plugin-react-hooks`, `@next/eslint-plugin-next`, `eslint-plugin-import-x`, `eslint-plugin-unused-imports`, `@eslint/markdown`, `@eslint/css` 等数十个核心插件。
+#### CLI 入口 (`src/cli.ts`)
+- **职责**: 程序的入口点。
+- **实现**: 使用 `cac` 库处理命令行参数（如 `--fix`, `--level`）。
+- **逻辑**: 
+  1. 它不会直接调用 ESLint API，而是准备好环境路径。
+  2. 调用 `generateTempConfig` 准备配置文件。
+  3. 调用 `runEslint` 和 `runPrettier` 启动子进程。
+  4. 最终根据子进程的 exit code 决定 `rl` 命令是成功还是失败。
+
+#### 配置生成器 (`src/core/config.ts`) 🔥核心
+这是项目最复杂的部分。为了实现「零配置」且不污染用户目录，我们采用 **虚拟配置 (Virtual Configuration)** 策略。
+
+- **动态生成**: 我们不依赖用户项目里的 `.eslintrc`。相反，我们在运行时，在 `node_modules/.cache/rhine-lint/` 下生成一个真实的 `eslint.config.mjs`。
+- **JIT 编译**: 生成的配置文件不仅仅是 JSON，它是一段 **JavaScript 代码**。
+  - 它会 `import` rhine-lint 内部的 `src/assets/eslint.config.js`。
+  - 它会使用 `jiti` 或动态导入 (`import()`) 来加载用户的 `rhine-lint.config.ts`。
+  - 它会在内存中通过 `defu` 库将默认配置和用户配置进行深层合并。
+- **关键点**: 这种设计使得 `rhine-lint` 内部的依赖（如 `eslint-plugin-react`）可以被正确解析，而不需要用户显式安装它们。
+
+#### 规则资产 (`src/assets/`)
+这里存放了 Lint 规则的「源头」。
+
+- **`eslint.config.js`**: 这是一个 **Factory Function**。它导出一个 `createConfig(options)` 函数。
+  - **Flat Config**: 采用了 ESLint v9 的 Flat Config 数组格式。
+  - **按需加载**: 根据传入的 `options.level` (如 `frontend` 或 `nextjs`)，它会动态 `push` 不同的配置块（Block）到数组中。例如，只有在 `nextjs` 模式下，才会加载 `@next/eslint-plugin-next` 相关规则。
+  - **插件集成**: 所有插件（`react`, `import-x`, `unused-imports` 等）都在这里被引入并配置。
+
+#### 执行引擎 (`src/core/runner.ts`)
+- **进程隔离**: 我们使用 Node.js 的 `child_process.spawn` 来调用 `eslint` 和 `prettier` 的可执行文件。
+- **为什么不使用 API?**: 
+  - 使用 API (如 `new ESLint()`) 可能会导致单例冲突，或者在某些边缘情况下与 CLI 行为不一致。
+  - 通过 spawn 调用 CLI 能够最大程度保证兼容性，并且利用多核 CPU 并行运行 Lint 和 Prettier。
+- **输出清洗**: 原生的 ESLint 输出对于普通用户来说可能太过冗长。我们在这一层捕获 stdout/stderr，移除了 ANSI 乱码，并提取出关键的 "X problems found" 摘要信息，给用户最直观的反馈。
+
+### 3. 开发指引 Development Guide
+
+如果你想为 Rhine Lint 添加新功能，请遵循以下路径：
+
+#### 添加一个新的 ESLint 插件
+1. **安装依赖**: 在 `rhine-lint` 项目中安装插件，例如 `bun add eslint-plugin-vue`。
+2. **注册插件**: 修改 `src/assets/eslint.config.js`。
+   - 导入插件。
+   - 在 `createConfig` 函数中，添加新的逻辑分支（例如 `if (OPTIONS.ENABLE_VUE) { ... }`）。
+   - 定义好 `plugins` 和 `rules`。
+3. **更新类型**: 在 `src/config.ts` 的 `Config` 类型定义中添加新的 Scope 开关。
+4. **测试**: 在 `playground` 目录中创建一个 Vue 文件，运行 `bun start --level vue` (假设你添加了 vue level) 进行验证。
+
+#### 调试 (Debugging)
+本项目完全使用 TypeScript 编写。
+
+- **Build**: `bun run build` (使用 `tsc` 编译到 `dist/`)。
+- **Link**: 在本项目根目录运行 `npm link`，然后在测试项目运行 `npm link rhine-lint`。
+- **Watch**: 也可以使用 `bun run dev` (如果配置了) 或手动监听文件变化。
+
+### 4. 目录结构
+
+```text
+rhine-lint/
+├── src/
+│   ├── assets/              # 默认的配置文件模板 (ESLint/Prettier)
+│   ├── core/
+│   │   ├── config.ts        # 配置加载与临时文件生成逻辑
+│   │   └── runner.ts        # 子进程执行器
+│   ├── utils/               # 工具函数 (Logger 等)
+│   ├── cli.ts               # 命令行入口
+│   ├── config.ts            # 类型定义
+│   └── index.ts             # 导出给用户的 API
+├── scripts/                 # 构建脚本
+└── package.json
+```
 
 ---
 
