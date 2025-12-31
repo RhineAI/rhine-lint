@@ -102,103 +102,119 @@ export async function generateTempConfig(
 
     let ignoredPatterns: string[] = [];
 
-    // Use Absolute Paths for ignores to avoid relative path hell from .cache dir.
-    // ESLint Flat Config supports absolute paths in ignores.
+    // Parse .gitignore file and convert to ESLint ignore patterns
+    // ESLint ignores are relative to the cwd where ESLint runs (which is the project root)
+    // NOT relative to the config file location
+    const parseGitignore = (content: string): string[] => {
+        const patterns: string[] = [];
+        const lines = content.split('\n');
 
-    const toRelativeGlob = (p: string) => {
-        // 1. Invert negation logic
-        // gitignore: "node_modules" -> Ignore.
-        // gitignore-to-glob: "!node_modules" (if excludes logic used, but actually let's check raw lines?)
-        // Wait, if gitignore-to-glob is simple parser, it keeps "node_modules".
-        // If it returns "node_modules", then p="node_modules".
-        // ESLint ignores: "node_modules".
-        // If gitignore: "!foo", lib returns "!foo". ESLint: "!foo" (Unignore).
-        // SO: if p does NOT start with !, it is an ignore. Return as is.
-        // if p starts with !, it is un-ignore. Return as is.
-        // WAIT. My previous analysis of "!" inversion was based on observed behavior of lib returning "!" for ignores?
-        // The logs showed "!C:/..." for ignores.
-        // So YES, the lib returns "!" for ignores.
-        // So we MUST strip "!" to get the pattern to Ignore.
+        for (let line of lines) {
+            // Remove Windows line endings and trim
+            line = line.replace(/\r$/, '').trim();
 
-        const isActuallyIgnore = p.startsWith('!');
-        let clean = isActuallyIgnore ? p.slice(1) : p;
+            // Skip empty lines and comments
+            if (!line || line.startsWith('#')) continue;
 
-        // 2. Identify recursion/rooting validity
-        // Check if original pattern (clean) was rooted
-        const isRooted = clean.startsWith('/') || clean.startsWith('\\');
-
-        // Strip leading slashes
-        clean = clean.replace(/^[\/\\]/, '');
-        clean = clean.replace(/\\/g, '/');
-
-        // 3. Check for directory (using absolute path for check)
-        const abs = path.join(cwd, clean);
-        let isDir = false;
-        try {
-            // Only check if no wildcard to avoid FS errors
-            if (clean && !clean.includes('*') && !path.extname(clean)) {
-                if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) isDir = true;
+            // Handle negation (un-ignore)
+            const isNegation = line.startsWith('!');
+            if (isNegation) {
+                line = line.slice(1);
             }
-        } catch (e) { }
 
-        // Append /** for directories to ignore contents
-        if (isDir && !clean.endsWith('/')) {
-            clean += '/**';
-        } else if (clean.endsWith('/')) {
-            clean += '**';
+            // Determine if pattern is rooted (starts with /)
+            const isRooted = line.startsWith('/');
+            if (isRooted) {
+                line = line.slice(1);
+            }
+
+            // Normalize path separators
+            line = line.replace(/\\/g, '/');
+
+            // Handle directory patterns (ends with /)
+            const isDir = line.endsWith('/');
+            if (isDir) {
+                line = line.slice(0, -1);
+            }
+
+            // Build the ESLint ignore pattern
+            // Patterns are relative to the cwd where ESLint runs (project root)
+            let pattern: string;
+
+            if (isRooted) {
+                // Rooted patterns: only match at project root
+                // e.g., /node_modules -> node_modules/**
+                pattern = line;
+            } else {
+                // Non-rooted patterns: match anywhere in the tree
+                // e.g., .next -> **/.next/**
+                pattern = `**/${line}`;
+            }
+
+            // Add /** suffix for directories and patterns that should match all contents
+            if (isDir || !line.includes('*')) {
+                // Check if it's likely a directory (no extension or common directory names)
+                const shouldMatchContents = isDir ||
+                    !path.extname(line) ||
+                    line.endsWith('.next') ||
+                    line.endsWith('.git') ||
+                    line.endsWith('.cache');
+
+                if (shouldMatchContents && !pattern.endsWith('/**')) {
+                    pattern += '/**';
+                }
+            }
+
+            // Apply negation prefix for ESLint if this was an un-ignore pattern
+            if (isNegation) {
+                pattern = '!' + pattern;
+            }
+
+            patterns.push(pattern);
         }
 
-        // 4. Construct Relative Path
-        // If rooted, anchor to ../../
-        // If recursive, anchor to ../../**/
-        let rel = '';
-        if (isRooted) {
-            rel = '../../' + clean;
-        } else {
-            // If pattern already has **, don't add another? 
-            // But ../../ is needed.
-            // If pattern is "dist/**", we want "../../**/dist/**" if recursive?
-            // Or "../../dist/**" if rooted?
-            // Assuming recursive if not rooted.
-            rel = '../../**/' + clean;
-        }
-
-        // 5. Apply negation (If isActuallyIgnore is true, we want Ignore, so NO '!'. If false, we want Unignore, so '!')
-        // Logic: 
-        // Lib: !foo -> Ignore foo.  ESLint: foo
-        // Lib: foo -> Unignore foo. ESLint: !foo
-        // So: return (isActuallyIgnore ? '' : '!') + rel;
-
-        return (isActuallyIgnore ? '' : '!') + rel;
+        return patterns;
     };
 
-    const projectDefaults = [
+    // Default directories to always ignore (relative to project root)
+    const defaultIgnores = [
         'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
-    ].map(dir => {
-        // These are recursive defaults
-        return `../../**/${dir}/**`;
-    });
+    ].map(dir => `**/${dir}/**`);
 
     if (await fs.pathExists(gitignorePath)) {
         try {
-            const gitignoreToGlob = require("gitignore-to-glob");
-            const rawPatterns: string[] = gitignoreToGlob(gitignorePath) || [];
-            const parsedGitignores = rawPatterns
-                .map(p => p.trim())
-                .filter(p => p && !p.startsWith('#'))
-                .map(p => toRelativeGlob(p));
-            ignoredPatterns = [...projectDefaults, ...parsedGitignores];
+            const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+
+            if (debug) {
+                console.log("-----------------------------------------");
+                console.log("DEBUG: .gitignore content preview:");
+                console.log(gitignoreContent.substring(0, 500));
+                console.log("-----------------------------------------");
+            }
+
+            const parsedPatterns = parseGitignore(gitignoreContent);
+
+            if (debug) {
+                console.log("-----------------------------------------");
+                console.log("DEBUG: Parsed gitignore patterns:");
+                parsedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
+                console.log("-----------------------------------------");
+            }
+
+            // Merge defaults with parsed patterns, removing duplicates
+            const allPatterns = [...defaultIgnores, ...parsedPatterns];
+            ignoredPatterns = [...new Set(allPatterns)];
         } catch (e) {
             logger.debug("Failed to parse .gitignore", e);
-            ignoredPatterns = projectDefaults;
+            ignoredPatterns = defaultIgnores;
         }
     } else {
-        ignoredPatterns = projectDefaults;
+        ignoredPatterns = defaultIgnores;
     }
 
     if (debug) {
         console.log("-----------------------------------------");
-        console.log("DEBUG: Final Ignores List (Relative Paths):");
+        console.log("DEBUG: Final Ignores List:");
         ignoredPatterns.forEach(p => console.log(p));
         console.log("-----------------------------------------");
     }
