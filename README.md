@@ -82,7 +82,7 @@ rl --level nextjs
 import { type Config } from 'rhine-lint';
 
 export default {
-  // 指定项目级别: 'js' | 'ts' | 'frontend' | 'nextjs'
+  // 指定项目级别: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs'
   // 默认为 'frontend'
   level: 'nextjs',
 
@@ -107,7 +107,7 @@ export default {
 
   // 额外的忽略模式 (可选)
   // 这些模式会与 .gitignore 和默认忽略合并
-  ignore: ['temp', 'generated', '*.test.ts'],
+  ignores: ['temp', 'generated', '*.test.ts'],
 
   // ESLint 专项配置
   eslint: {
@@ -570,24 +570,70 @@ function resolveBin(pkgName: string, binPathRelative: string): string {
 
 ```typescript
 export type Config = {
-  type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+  /**
+   * 项目级别，决定启用哪些规则
+   * 每个级别包含前一级别的所有规则:
+   * - 'js': 仅 JavaScript (无类型检查)
+   * - 'ts': TypeScript 类型感知规则
+   * - 'frontend' / 'react': TypeScript + React/JSX/Hooks 规则
+   * - 'nextjs': TypeScript + React + Next.js 规则
+   * @default 'frontend'
+   */
+  level?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+  /**
+   * 存储生成的虚拟配置文件和缓存元数据的目录
+   * @default 'node_modules/.cache/rhine-lint' 或 '.cache/rhine-lint'
+   */
   cacheDir?: string,
+  /**
+   * 自动修复 lint 错误和格式问题
+   * @default false
+   */
   fix?: boolean,
-  time?: boolean,                // 显示各阶段耗时 (default: true)
-  projectTypeCheck?: boolean,    // 启用项目级类型检查 (default: true)
-  tsconfig?: string,             // tsconfig 文件路径 (default: './tsconfig.json')
-  ignoreFiles?: string[],        // gitignore 风格的忽略文件列表 (default: ['./.gitignore'])
-  ignores?: string[],            // 忽略模式列表 (default: ['package-lock.json', ...])
-  ignore?: string[],             // [deprecated] 使用 ignores 代替
+  /**
+   * 启用各阶段耗时输出
+   * @default true
+   */
+  time?: boolean,
+  /**
+   * 启用基于项目的 TypeScript 类型检查
+   * 启用 projectService 和 strictTypeChecked 规则
+   * 更慢但更准确的类型感知 lint
+   * @default true
+   */
+  projectTypeCheck?: boolean,
+  /**
+   * tsconfig 文件路径
+   * @default './tsconfig.json' 或 './tsconfig.app.json'
+   */
+  tsconfig?: string,
+  /**
+   * gitignore 风格的忽略文件列表
+   * @default ['./.gitignore']
+   */
+  ignoreFiles?: string[],
+  /**
+   * 忽略模式列表
+   * @default ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock']
+   */
+  ignores?: string[],
+  /** @deprecated 使用 ignores 代替 */
+  ignore?: string[],
   eslint?: {
-    enable?: boolean,            // 是否启用 ESLint (default: true)
-    config?: [...],              // ESLint Flat Config 数组
-    overlay?: boolean,           // 覆盖模式 (true: 完全覆盖内置配置)
+    /** 是否启用 ESLint @default true */
+    enable?: boolean,
+    /** ESLint Flat Config 数组 */
+    config?: Linter.Config[],
+    /** 覆盖模式 (true: 完全覆盖内置配置) */
+    overlay?: boolean,
   },
   prettier?: {
-    enable?: boolean,            // 是否启用 Prettier (default: true)
-    config?: {...},              // Prettier 配置对象
-    overlay?: boolean,           // 覆盖模式 (true: 完全覆盖内置配置)
+    /** 是否启用 Prettier @default true */
+    enable?: boolean,
+    /** Prettier 配置对象 */
+    config?: PrettierConfig,
+    /** 覆盖模式 (true: 完全覆盖内置配置) */
+    overlay?: boolean,
   }
 }
 ```
@@ -636,6 +682,7 @@ rhine-lint/
 1. 包管理器使用bun。
 2. 项目所有输出打印的日志用英文，代码注释用中文。
 3. 所有内容要结构规范清晰，分工明确，最佳实践。
+4. 修改配置文件添加新选项时，确保在`type Config`定义中同步`TsDoc`定义，以及README中同步相关说明。CLI中如果需要，也同步。
 
 ## License
 

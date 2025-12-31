@@ -5,7 +5,7 @@
  */
 export type Config = {
     /**
-     * Project type level that determines which linting rules to enable.
+     * Project level that determines which linting rules to enable.
      * Each level includes all rules from previous levels:
      * - `'js'`: JavaScript only (no type checking)
      * - `'ts'`: TypeScript with type-aware rules
@@ -13,7 +13,7 @@ export type Config = {
      * - `'nextjs'`: TypeScript + React + Next.js specific rules
      * @default 'frontend'
      */
-    type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+    level?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
     /**
      * Directory for storing generated virtual config files and cache metadata.
      * Can be absolute or relative to the project root.
