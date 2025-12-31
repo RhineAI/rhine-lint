@@ -105,6 +105,10 @@ export default {
   // 默认为 './tsconfig.json'
   tsconfig: './tsconfig.app.json',
 
+  // 额外的忽略模式 (可选)
+  // 这些模式会与 .gitignore 和默认忽略合并
+  ignore: ['temp', 'generated', '*.test.ts'],
+
   // ESLint 专项配置
   eslint: {
     // 启用/禁用特定范围的规则
@@ -189,6 +193,47 @@ export default {
 
 默认使用 `./tsconfig.json`。如果你的项目使用不同的 tsconfig 文件（如 `tsconfig.app.json`、`tsconfig.node.json` 等），可以通过此选项指定。
 
+### 忽略模式 Ignore Patterns
+
+Rhine Lint 提供了灵活的文件忽略机制，支持多种配置方式。
+
+#### 默认忽略
+
+以下目录始终被忽略（无需配置）：
+- `node_modules`, `dist`, `.next`, `.git`, `.output`, `.nuxt`, `coverage`, `.cache`
+
+#### 自动读取 .gitignore
+
+Rhine Lint 会自动解析项目根目录的 `.gitignore` 文件，将其中的模式转换为 ESLint 忽略规则。
+
+#### CLI 忽略选项
+
+```bash
+# 添加额外的忽略模式 (支持多次使用)
+rl --ignore temp --ignore generated --ignore "*.test.ts"
+
+# 禁用所有忽略规则 (包括 .gitignore 和默认忽略)
+rl --no-ignore
+```
+
+#### 配置文件忽略
+
+```typescript
+// rhine-lint.config.ts
+export default {
+  ignore: ['temp', 'generated', '*.test.ts']
+}
+```
+
+#### 忽略模式优先级
+
+1. `--no-ignore` 会禁用所有忽略处理
+2. 否则，按以下顺序合并（后面的追加到前面）：
+   - 默认忽略目录
+   - `.gitignore` 解析结果
+   - 配置文件 `ignore` 数组
+   - CLI `--ignore` 参数
+
 ### 缓存目录 Cache Directory
 
 Rhine Lint 需要一个目录来存放运行时动态生成的 "Virtual Config" 文件。这些文件是临时的，通常不需要用户关心。
@@ -247,6 +292,38 @@ graph TD
 #### CLI 入口 (`src/cli.ts`)
 - **职责**: 程序的入口点。
 - **实现**: 使用 `cac` 库处理命令行参数（如 `--fix`, `--level`）。
+
+##### CLI 选项定义
+
+```typescript
+cli
+  .command("[...files]", "Lint files")
+  .option("--fix", "Fix lint errors")
+  .option("--config <path>", "Path to config file")
+  .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
+  .option("--no-project-type-check", "Disable project-based type checking")
+  .option("--tsconfig <path>", "Path to tsconfig file")
+  .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
+  .option("--no-ignore", "Disable all ignore rules")
+  .option("--cache-dir <dir>", "Custom cache directory")
+  .option("--debug", "Enable debug mode")
+```
+
+##### 关键逻辑
+
+```typescript
+// --ignore 参数处理 (支持多次调用)
+// cac 会自动将多个 --ignore 收集为数组
+// --no-ignore 会设置 options.ignore = false
+const noIgnore = options.ignore === false;
+let ignorePatterns: string[] = [];
+if (!noIgnore && options.ignore && options.ignore !== true) {
+  ignorePatterns = Array.isArray(options.ignore)
+    ? options.ignore.filter((p: unknown) => typeof p === 'string')
+    : [options.ignore];
+}
+```
+
 - **逻辑**: 
   1. 它不会直接调用 ESLint API，而是准备好环境路径。
   2. 调用 `generateTempConfig` 准备配置文件。
@@ -255,6 +332,52 @@ graph TD
 
 #### 配置生成器 (`src/core/config.ts`) 🔥核心
 这是项目最复杂的部分。为了实现「零配置」且不污染用户目录，我们采用 **虚拟配置 (Virtual Configuration)** 策略。
+
+##### 函数签名
+
+```typescript
+export async function generateTempConfig(
+    cwd: string,                              // 项目根目录
+    userConfigResult: { config: Config, path?: string },  // 用户配置
+    cliLevel?: string,                        // --level 参数
+    cliCacheDir?: string,                     // --cache-dir 参数
+    debug?: boolean,                          // --debug 参数
+    cliProjectTypeCheck?: boolean,            // --no-project-type-check
+    cliTsconfig?: string,                     // --tsconfig 参数
+    cliIgnorePatterns: string[] = [],         // --ignore 参数 (数组)
+    noIgnore: boolean = false                 // --no-ignore 参数
+): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }>
+```
+
+##### 核心流程
+
+1. **参数优先级处理**: CLI 参数 > 配置文件 > 默认值
+   ```typescript
+   const projectTypeCheck = cliProjectTypeCheck ?? userConfigResult.config.projectTypeCheck ?? true;
+   const tsconfigPath = cliTsconfig ?? userConfigResult.config.tsconfig;
+   ```
+
+2. **智能缓存 (SHA-256 指纹)**:
+   ```typescript
+   const hash = createHash("sha256");
+   hash.update(pkg.version || "0.0.0");
+   hash.update(cliLevel || "default");
+   hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
+   hash.update(tsconfigPath || "default-tsconfig");
+   hash.update(cliIgnorePatterns.join(",") || "no-cli-ignore");
+   hash.update(noIgnore ? "no-ignore" : "with-ignore");
+   // + 用户配置文件内容 + .gitignore 内容
+   ```
+
+3. **忽略模式处理**:
+   - 若 `--no-ignore`，跳过所有忽略处理
+   - 否则：解析 `.gitignore` → 合并默认忽略 → 合并 CLI/Config 忽略
+   - 模式规范化：自动添加 `**/` 前缀和 `/**` 后缀
+
+4. **生成虚拟配置**: 动态生成 `eslint.config.mjs` 内容，包含：
+   - 忽略模式数组
+   - 用户配置加载逻辑
+   - level 对应的规则开关
 
 - **动态生成**: 我们不依赖用户项目里的 `.eslintrc`。相反，我们在运行时，在 `node_modules/.cache/rhine-lint/` 下生成一个真实的 `eslint.config.mjs`。
 - **TypeScript 配置编译 (TS Compilation)**: 如果检测到用户的配置文件是 `.ts` 格式：
@@ -267,22 +390,113 @@ graph TD
 - **JIT 加载**: 除了上述静态编译，对于部分模块加载我们使用 `jiti` 确保兼容性。
 - **关键点**: 这种设计使得 `rhine-lint` 内部的依赖（如 `eslint-plugin-react`）可以被正确解析，而不需要用户显式安装它们。
 
-#### 规则资产 (`src/assets/`)
-这里存放了 Lint 规则的「源头」。
+#### 规则资产 (`src/assets/eslint.config.js`)
+这里存放了 Lint 规则的「源头」。这是一个 **Factory Function**，导出 `createConfig(options)` 函数。
 
-- **`eslint.config.js`**: 这是一个 **Factory Function**。它导出一个 `createConfig(options)` 函数。
-  - **Flat Config**: 采用了 ESLint v9 的 Flat Config 数组格式。
-  - **按需加载**: 根据传入的 `options.level` (如 `frontend` 或 `nextjs`)，它会动态 `push` 不同的配置块（Block）到数组中。例如，只有在 `nextjs` 模式下，才会加载 `@next/eslint-plugin-next` 相关规则。
-  - **插件集成**: 所有插件（`react`, `import-x`, `unused-imports` 等）都在这里被引入并配置。
+##### OPTIONS 配置项
+
+```javascript
+const OPTIONS = {
+  ENABLE_SCRIPT: true,                    // 启用 TS/JS 文件处理
+  ENABLE_TYPE_CHECKED: true,              // 启用类型检查规则
+  ENABLE_PROJECT_BASE_TYPE_CHECKED: true, // 启用项目级类型检查 (projectService)
+  ENABLE_FRONTEND: true,                  // 启用 React/JSX 规则
+  ENABLE_NEXT: false,                     // 启用 Next.js 规则
+  ENABLE_MARKDOWN: true,                  // 启用 Markdown 规则
+  ENABLE_JSON: true,                      // 启用 JSON 规则
+  ENABLE_STYLESHEET: true,                // 启用 CSS 规则
+  IGNORE_PRETTIER: true,                  // 禁用与 Prettier 冲突的规则
+  TSCONFIG_PATH: './tsconfig.json',       // tsconfig 文件路径
+  ...overrides                            // 运行时覆盖
+}
+```
+
+##### 配置块组装
+
+```javascript
+return [
+  ...globalConfig,      // 全局忽略配置
+  ...scriptConfig,      // TS/JS 基础规则 + import-x + unused-imports
+  ...frontendConfig,    // React/Next.js 规则 (按 level 条件加载)
+  ...cssConfig,         // CSS 规则
+  ...markdownConfig,    // Markdown 规则
+  ...jsonConfig,        // JSON/JSONC 规则
+  ...prettierConfig,    // eslint-config-prettier (禁用冲突规则)
+  ...customConfig,      // 自定义规则覆盖
+]
+```
+
+- **Flat Config**: 采用了 ESLint v9 的 Flat Config 数组格式。
+- **按需加载**: 根据传入的 `options.level` (如 `frontend` 或 `nextjs`)，它会动态 `push` 不同的配置块（Block）到数组中。例如，只有在 `nextjs` 模式下，才会加载 `@next/eslint-plugin-next` 相关规则。
+- **插件集成**: 所有插件（`react`, `import-x`, `unused-imports` 等）都在这里被引入并配置。
 
 #### 执行引擎 (`src/core/runner.ts`)
+
+##### 核心函数
+
+```typescript
+// 通用命令执行
+async function runCommandWithOutput(
+  command: string,
+  args: string[],
+  cwd: string
+): Promise<{ output: string, code: number }>
+
+// ESLint 执行
+async function runEslint(
+  cwd: string,
+  configPath: string,   // 生成的虚拟配置路径
+  fix: boolean,
+  files: string[]
+): Promise<string | null>  // 返回错误摘要或 null
+
+// Prettier 执行
+async function runPrettier(
+  cwd: string,
+  configPath: string,
+  fix: boolean,
+  files: string[]
+): Promise<string | null>
+```
+
+##### 二进制解析策略
+
+```typescript
+function resolveBin(pkgName: string, binPathRelative: string): string {
+  // 1. 尝试 require.resolve (最快)
+  // 2. 回退：遍历目录找 package.json
+  // 3. 回退：使用系统 PATH
+}
+```
+
 - **进程隔离**: 我们使用 Node.js 的 `child_process.spawn` 来调用 `eslint` 和 `prettier` 的可执行文件。
 - **为什么不使用 API?**: 
   - 使用 API (如 `new ESLint()`) 可能会导致单例冲突，或者在某些边缘情况下与 CLI 行为不一致。
   - 通过 spawn 调用 CLI 能够最大程度保证兼容性，并且利用多核 CPU 并行运行 Lint 和 Prettier。
 - **输出清洗**: 原生的 ESLint 输出对于普通用户来说可能太过冗长。我们在这一层捕获 stdout/stderr，移除了 ANSI 乱码，并提取出关键的 "X problems found" 摘要信息，给用户最直观的反馈。
 
-### 3. 开发指引 Development Guide
+### 3. 类型定义 (`src/config.ts`)
+
+```typescript
+export type Config = {
+  type?: 'js' | 'ts' | 'frontend' | 'react' | 'nextjs',
+  cacheDir?: string,
+  fix?: boolean,
+  projectTypeCheck?: boolean,  // 启用项目级类型检查 (default: true)
+  tsconfig?: string,           // tsconfig 文件路径 (default: './tsconfig.json')
+  ignore?: string[],           // 额外的忽略模式
+  eslint?: {
+    config?: [...],            // ESLint Flat Config 数组
+    overlay?: boolean,         // 覆盖模式
+  },
+  prettier?: {
+    config?: {...},            // Prettier 配置对象
+    overlay?: boolean,
+  }
+}
+```
+
+### 4. 开发指引 Development Guide
 
 如果你想为 Rhine Lint 添加新功能，请遵循以下路径：
 
@@ -302,7 +516,7 @@ graph TD
 - **Link**: 在本项目根目录运行 `npm link`，然后在测试项目运行 `npm link rhine-lint`。
 - **Watch**: 也可以使用 `bun run dev` (如果配置了) 或手动监听文件变化。
 
-### 4. 目录结构
+### 5. 目录结构
 
 ```text
 rhine-lint/

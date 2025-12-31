@@ -44,7 +44,6 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
             try {
                 const configModule = jiti(configPath);
                 const config = configModule.default || configModule;
-                logInfo(`Using config file: ${configPath}`);
                 return { config, path: configPath };
             } catch (e) {
                 logger.error(`Failed to load config file ${configPath}:`, e);
@@ -52,7 +51,6 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
             }
         }
     }
-    logInfo("No config file found, using default configuration.");
     return { config: {} };
 }
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from 'module';
 // import cac from "cac";
+import path from "node:path";
 import { loadUserConfig, generateTempConfig, cleanup } from "./core/config.js";
 import { runEslint, runPrettier } from "./core/runner.js";
 import { logError, logSuccess, logInfo } from "./utils/logger.js";
@@ -37,7 +38,10 @@ cli
             const userConfigResult = await loadUserConfig(cwd);
 
             if (userConfigResult.path) {
-                logInfo(`Using config: ${userConfigResult.path}`);
+                // Show relative path if config is inside project
+                const relativePath = path.relative(cwd, userConfigResult.path);
+                const displayPath = relativePath.startsWith('..') ? userConfigResult.path : relativePath;
+                logInfo(`Using config: ${displayPath}`);
             } else {
                 logInfo("Using default configuration");
             }
