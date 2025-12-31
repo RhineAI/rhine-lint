@@ -10,7 +10,13 @@ export type Config = {
      * - `'normal'`: Base rules (JS or TS depending on `typescript` option)
      * - `'react'`: Normal + React/JSX/Hooks rules
      * - `'next'`: React + Next.js specific rules
-     * @default 'react'
+     *
+     * When not specified, Rhine Lint will auto-detect from package.json:
+     * - Detects `next` in dependencies → `'next'`
+     * - Detects `react` in dependencies → `'react'`
+     * - Cannot detect → warns and uses `'normal'`
+     *
+     * @default auto-detect from package.json
      */
     level?: 'normal' | 'react' | 'next',
     /**

@@ -65,6 +65,53 @@ const DEFAULT_IGNORE_DIRS = [
     'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
 ];
 
+/**
+ * 通过分析 package.json 的 dependencies 自动检测项目级别
+ * @returns 'next' | 'react' | 'normal'
+ */
+async function detectLevelFromPackageJson(cwd: string, debug?: boolean): Promise<'next' | 'react' | 'normal'> {
+    const pkgPath = path.join(cwd, 'package.json');
+    try {
+        if (await fs.pathExists(pkgPath)) {
+            const pkgJson = await fs.readJson(pkgPath);
+            const allDeps = {
+                ...pkgJson.dependencies,
+                ...pkgJson.devDependencies,
+            };
+
+            // 检测 Next.js
+            if (allDeps['next']) {
+                if (debug) {
+                    console.log("DEBUG: Detected 'next' in dependencies, using level: next");
+                }
+                logInfo("Auto-detected project level: next");
+                return 'next';
+            }
+
+            // 检测 React
+            if (allDeps['react']) {
+                if (debug) {
+                    console.log("DEBUG: Detected 'react' in dependencies, using level: react");
+                }
+                logInfo("Auto-detected project level: react");
+                return 'react';
+            }
+
+            // 无法检测到框架
+            if (debug) {
+                console.log("DEBUG: No framework detected in dependencies, using level: normal");
+            }
+            logger.warn("Could not detect project framework from package.json, using level: normal");
+            return 'normal';
+        }
+    } catch (e) {
+        logger.debug("Failed to read package.json for level detection", e);
+    }
+
+    logger.warn("Could not find package.json, using level: normal");
+    return 'normal';
+}
+
 export async function generateTempConfig(
     cwd: string,
     userConfigResult: { config: Config, path?: string },
@@ -77,7 +124,7 @@ export async function generateTempConfig(
     cliIgnorePatterns: string[] = [],
     noIgnore: boolean = false,
     cliIgnoreFiles: string[] = []
-): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
+): Promise<{ eslintPath: string; prettierPath: string; cachePath: string; resolvedLevel: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
     await fs.ensureDir(cachePath);
@@ -96,6 +143,16 @@ export async function generateTempConfig(
 
     // Determine tsconfig path: CLI flag takes precedence over config file
     const tsconfigPath = cliTsconfig ?? userConfigResult.config.tsconfig;
+
+    // Determine level: CLI > config > auto-detect from package.json
+    let resolvedLevel: string;
+    if (cliLevel) {
+        resolvedLevel = cliLevel;
+    } else if (userConfigResult.config.level) {
+        resolvedLevel = userConfigResult.config.level;
+    } else {
+        resolvedLevel = await detectLevelFromPackageJson(cwd, debug);
+    }
 
     // 解析忽略文件列表：CLI 覆盖 config，否则使用 config 或默认值
     // CLI 优先级最高，如果 CLI 有值则完全使用 CLI 的值
@@ -118,7 +175,7 @@ export async function generateTempConfig(
     try {
         const hash = createHash("sha256");
         hash.update(pkg.version || "0.0.0");
-        hash.update(cliLevel || "default");
+        hash.update(resolvedLevel || "default");
         hash.update(typescript ? "ts-on" : "ts-off");
         hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
         hash.update(tsconfigPath || "default-tsconfig");
@@ -145,7 +202,7 @@ export async function generateTempConfig(
             const meta = await fs.readJson(metaPath);
             if (meta.hash === calculatedHash && await fs.pathExists(eslintTempPath) && await fs.pathExists(prettierTempPath)) {
                 logger.debug(`Cache hit! Configs reused from ${cachePath}`);
-                return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath };
+                return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath, resolvedLevel };
             }
         }
     } catch (e) {
@@ -353,7 +410,7 @@ const userOne = loaded.default || loaded;
 ` : 'const userOne = {};'}
 
 const userEslint = userOne.eslint || {};
-const level = "${cliLevel || ''}" || userOne.level || "react";
+const level = "${resolvedLevel}";
 const typescript = ${typescript};
 
 // Project-based type checking: CLI flag (${projectTypeCheck}) takes precedence over config file
@@ -430,7 +487,7 @@ export default finalConfig;
     await fs.writeFile(prettierTempPath, prettierContent);
     await fs.writeJson(metaPath, { hash: calculatedHash, timestamp: Date.now() });
 
-    return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath };
+    return { eslintPath: eslintTempPath, prettierPath: prettierTempPath, cachePath, resolvedLevel };
 }
 
 export async function cleanup(cachePath: string) {

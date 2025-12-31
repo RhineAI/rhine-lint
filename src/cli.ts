@@ -95,6 +95,15 @@ cli
             const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.typescript, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore, ignoreFiles);
             usedCachePath = temps.cachePath; // Save for cleanup
 
+            // 输出使用的 level 和 typescript 设置
+            const typescript = options.typescript ?? userConfigResult.config.typescript ?? true;
+            const projectTypeCheck = options.projectTypeCheck ?? userConfigResult.config.projectTypeCheck ?? true;
+            let modeStr = typescript ? "TypeScript" : "JavaScript";
+            if (typescript && projectTypeCheck) {
+                modeStr += " - Project Base";
+            }
+            logInfo(`Using level: ${temps.resolvedLevel} (${modeStr})`);
+
             // 计时：第一阶段（准备阶段）
             if (showTime) {
                 logTime("Preparation", Date.now() - startPhase);

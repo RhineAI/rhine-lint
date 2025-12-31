@@ -289,12 +289,19 @@ Rhine Lint 需要一个目录来存放运行时动态生成的 "Virtual Config" 
 
 ## 项目级别 Project Levels
 
-Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集：
+Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集。
+
+### 自动检测
+
+当 `level` 未指定时，Rhine Lint 会自动分析 `package.json` 的 `dependencies` 和 `devDependencies`：
+- 检测到 `next` 依赖 → 使用 `level: 'next'`
+- 检测到 `react` 依赖 → 使用 `level: 'react'`
+- 无法检测 → 警告并使用 `level: 'normal'`
 
 ### Level 选项
 
 - **`normal`**: 基础项目。仅包含标准规则和 Prettier。
-- **`react`** (默认): React 前端项目。包含 `normal` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
+- **`react`**: React 前端项目。包含 `normal` 级别所有规则，加上 `React`, `React Hooks`, `JSX` 相关规则。
 - **`next`**: Next.js 项目。包含 `react` 级别所有规则，加上 `@next/eslint-plugin-next` 的 Core Web Vitals 等规则。
 
 ### TypeScript 选项
