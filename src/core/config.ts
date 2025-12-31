@@ -374,13 +374,15 @@ prefixConfig.push({ ignores: ${JSON.stringify(ignoredPatterns)} });
 ` : ''}
 
 if (${isEslintOverlay} || userEslint.overlay) {
-    if (Array.isArray(userEslint.config)) {
-        finalConfig = [...prefixConfig, ...defaultEslint, ...userEslint.config];
+    // overlay=true: 用户配置完全覆盖内置配置
+    const userConf = userEslint.config || [];
+    if (Array.isArray(userConf)) {
+        finalConfig = [...prefixConfig, ...userConf];
     } else {
-        finalConfig = defu(userEslint, defaultEslint); 
-        if (!Array.isArray(finalConfig)) finalConfig = [...prefixConfig, finalConfig];
+        finalConfig = [...prefixConfig, userConf];
     }
 } else {
+    // overlay=false: 内置配置 + 用户配置追加
     const userConf = userEslint.config || [];
     const defaultConf = Array.isArray(defaultEslint) ? defaultEslint : [defaultEslint];
     finalConfig = [...prefixConfig, ...defaultConf, ...userConf];
@@ -406,8 +408,10 @@ const defaultPrettier = defaultOne;
 
 let finalConfig;
 if (${isPrettierOverlay} || userPrettier.overlay) {
-    finalConfig = defu(userPrettier.config || {}, defaultPrettier);
+    // overlay=true: 用户配置完全覆盖内置配置
+    finalConfig = userPrettier.config || {};
 } else {
+    // overlay=false: 内置配置为基础，用户配置补充
     finalConfig = defu(userPrettier.config || {}, defaultPrettier);
 }
 

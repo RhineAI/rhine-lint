@@ -6,14 +6,6 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 import css from '@eslint/css'
-
-// ... skipped standard imports ...
-
-// Removed Patch Mock - No longer needed as we don't use eslint-config-next
-
-// ...
-
-
 import js from '@eslint/js'
 import json from '@eslint/json'
 import markdown from '@eslint/markdown'
