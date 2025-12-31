@@ -47,16 +47,16 @@ yarn add -D rhine-lint
 
 ```bash
 # 检查当前目录下所有文件 (默认 lint + check format)
-npx rl
+rl
 
 # 自动修复所有可修复的代码风格问题
-npx rl --fix
+rl --fix
 
 # 检查指定文件或目录
-npx rl src/components
+rl src/components
 
 # 指定项目类型 (覆盖自动检测或默认值)
-npx rl --level nextjs
+rl --level nextjs
 ```
 
 ### 推荐配置
@@ -163,7 +163,7 @@ CLI 参数优先级高于配置文件：
 
 ```bash
 # 禁用项目类型检查 (CLI)
-npx rl --no-project-type-check
+rl --no-project-type-check
 
 # 在配置文件中设置
 # rhine-lint.config.ts
@@ -178,7 +178,7 @@ export default {
 
 ```bash
 # 指定 tsconfig 路径 (CLI)
-npx rl --tsconfig ./tsconfig.app.json
+rl --tsconfig ./tsconfig.app.json
 
 # 在配置文件中设置
 # rhine-lint.config.ts
