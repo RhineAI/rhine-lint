@@ -54,6 +54,17 @@ export async function loadUserConfig(cwd: string): Promise<{ config: Config, pat
     return { config: {} };
 }
 
+// 默认的忽略文件列表
+const DEFAULT_IGNORE_FILES = ['./.gitignore'];
+
+// 默认的忽略模式列表
+const DEFAULT_IGNORES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock'];
+
+// 默认始终忽略的目录
+const DEFAULT_IGNORE_DIRS = [
+    'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
+];
+
 export async function generateTempConfig(
     cwd: string,
     userConfigResult: { config: Config, path?: string },
@@ -63,7 +74,8 @@ export async function generateTempConfig(
     cliProjectTypeCheck?: boolean,
     cliTsconfig?: string,
     cliIgnorePatterns: string[] = [],
-    noIgnore: boolean = false
+    noIgnore: boolean = false,
+    cliIgnoreFiles: string[] = []
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -72,7 +84,6 @@ export async function generateTempConfig(
     const eslintTempPath = path.join(cachePath, "eslint.config.mjs");
     const prettierTempPath = path.join(cachePath, "prettier.config.mjs");
     const metaPath = path.join(cachePath, "metadata.json");
-    const gitignorePath = path.join(cwd, ".gitignore");
 
     // Determine projectTypeCheck: CLI flag takes precedence over config file, default is true
     // When --no-project-type-check is used, options.projectTypeCheck will be false
@@ -81,6 +92,23 @@ export async function generateTempConfig(
     // Determine tsconfig path: CLI flag takes precedence over config file
     const tsconfigPath = cliTsconfig ?? userConfigResult.config.tsconfig;
 
+    // 解析忽略文件列表：CLI 覆盖 config，否则使用 config 或默认值
+    // CLI 优先级最高，如果 CLI 有值则完全使用 CLI 的值
+    const resolvedIgnoreFiles = cliIgnoreFiles.length > 0
+        ? cliIgnoreFiles
+        : (userConfigResult.config.ignoreFiles !== undefined
+            ? userConfigResult.config.ignoreFiles
+            : DEFAULT_IGNORE_FILES);
+
+    // 解析忽略模式列表：CLI 覆盖 config，否则使用 config 或默认值
+    // 同时兼容旧的 ignore 字段
+    const configIgnores = userConfigResult.config.ignores ?? userConfigResult.config.ignore ?? [];
+    const resolvedIgnores = cliIgnorePatterns.length > 0
+        ? cliIgnorePatterns
+        : (configIgnores.length > 0
+            ? configIgnores
+            : DEFAULT_IGNORES);
+
     let calculatedHash = "";
     try {
         const hash = createHash("sha256");
@@ -88,17 +116,22 @@ export async function generateTempConfig(
         hash.update(cliLevel || "default");
         hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
         hash.update(tsconfigPath || "default-tsconfig");
-        hash.update(cliIgnorePatterns.join(",") || "no-cli-ignore");
+        hash.update(resolvedIgnoreFiles.join(",") || "no-ignore-files");
+        hash.update(resolvedIgnores.join(",") || "no-ignores");
         hash.update(noIgnore ? "no-ignore" : "with-ignore");
         if (userConfigResult.path && await fs.pathExists(userConfigResult.path)) {
             const content = await fs.readFile(userConfigResult.path);
             hash.update(content);
         }
-        if (await fs.pathExists(gitignorePath)) {
-            const content = await fs.readFile(gitignorePath);
-            hash.update(content);
-        } else {
-            hash.update("no-gitignore");
+        // 为每个忽略文件计算 hash
+        for (const ignoreFile of resolvedIgnoreFiles) {
+            const ignoreFilePath = path.resolve(cwd, ignoreFile);
+            if (await fs.pathExists(ignoreFilePath)) {
+                const content = await fs.readFile(ignoreFilePath);
+                hash.update(content);
+            } else {
+                hash.update(`no-file:${ignoreFile}`);
+            }
         }
         calculatedHash = hash.digest("hex");
 
@@ -117,7 +150,7 @@ export async function generateTempConfig(
 
     // If --no-ignore is set, skip all ignore processing
     if (!noIgnore) {
-        // Parse .gitignore file and convert to ESLint ignore patterns
+        // Parse gitignore-style file and convert to ESLint ignore patterns
         // ESLint ignores are relative to the cwd where ESLint runs (which is the project root)
         // NOT relative to the config file location
         const parseGitignore = (content: string): string[] => {
@@ -191,67 +224,72 @@ export async function generateTempConfig(
             return patterns;
         };
 
-        // Default directories to always ignore (relative to project root)
-        const defaultIgnores = [
-            'node_modules', 'dist', '.next', '.git', '.output', '.nuxt', 'coverage', '.cache'
-        ].map(dir => `**/${dir}/**`);
-
-        if (await fs.pathExists(gitignorePath)) {
-            try {
-                const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-
-                if (debug) {
-                    console.log("-----------------------------------------");
-                    console.log("DEBUG: .gitignore content preview:");
-                    console.log(gitignoreContent.substring(0, 500));
-                    console.log("-----------------------------------------");
-                }
-
-                const parsedPatterns = parseGitignore(gitignoreContent);
-
-                if (debug) {
-                    console.log("-----------------------------------------");
-                    console.log("DEBUG: Parsed gitignore patterns:");
-                    parsedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
-                    console.log("-----------------------------------------");
-                }
-
-                // Merge defaults with parsed patterns, removing duplicates
-                const allPatterns = [...defaultIgnores, ...parsedPatterns];
-                ignoredPatterns = [...new Set(allPatterns)];
-            } catch (e) {
-                logger.debug("Failed to parse .gitignore", e);
-                ignoredPatterns = defaultIgnores;
+        // 规范化忽略模式（添加 **/ 前缀和 /** 后缀）
+        const normalizePattern = (pattern: string): string => {
+            // If pattern doesn't start with ** or !, add **/ prefix
+            if (!pattern.startsWith('**') && !pattern.startsWith('!')) {
+                pattern = `**/${pattern}`;
             }
-        } else {
-            ignoredPatterns = defaultIgnores;
+            // If pattern doesn't end with /** and doesn't contain *, add /** suffix
+            if (!pattern.endsWith('/**') && !pattern.includes('*')) {
+                pattern = `${pattern}/**`;
+            }
+            return pattern;
+        };
+
+        // 1. 添加默认始终忽略的目录
+        const defaultDirPatterns = DEFAULT_IGNORE_DIRS.map(dir => `**/${dir}/**`);
+        ignoredPatterns.push(...defaultDirPatterns);
+
+        // 2. 解析所有忽略文件
+        for (const ignoreFile of resolvedIgnoreFiles) {
+            const ignoreFilePath = path.resolve(cwd, ignoreFile);
+            if (await fs.pathExists(ignoreFilePath)) {
+                try {
+                    const content = await fs.readFile(ignoreFilePath, 'utf-8');
+
+                    if (debug) {
+                        console.log("-----------------------------------------");
+                        console.log(`DEBUG: ${ignoreFile} content preview:`);
+                        console.log(content.substring(0, 500));
+                        console.log("-----------------------------------------");
+                    }
+
+                    const parsedPatterns = parseGitignore(content);
+
+                    if (debug) {
+                        console.log("-----------------------------------------");
+                        console.log(`DEBUG: Parsed patterns from ${ignoreFile}:`);
+                        parsedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
+                        console.log("-----------------------------------------");
+                    }
+
+                    ignoredPatterns.push(...parsedPatterns);
+                } catch (e) {
+                    logger.debug(`Failed to parse ignore file: ${ignoreFile}`, e);
+                }
+            } else if (debug) {
+                console.log(`DEBUG: Ignore file not found: ${ignoreFile}`);
+            }
         }
 
-        // Add CLI and config file ignore patterns
-        const configIgnorePatterns = (userConfigResult.config.ignore || []).filter((p): p is string => typeof p === 'string');
-        const allCliPatterns = [...cliIgnorePatterns, ...configIgnorePatterns];
-        if (allCliPatterns.length > 0) {
-            // Normalize CLI patterns (add **/ prefix and /** suffix if needed)
-            const normalizedCliPatterns = allCliPatterns.map(pattern => {
-                // If pattern doesn't start with ** or !, add **/ prefix
-                if (!pattern.startsWith('**') && !pattern.startsWith('!')) {
-                    pattern = `**/${pattern}`;
-                }
-                // If pattern doesn't end with /** and doesn't contain *, add /** suffix
-                if (!pattern.endsWith('/**') && !pattern.includes('*')) {
-                    pattern = `${pattern}/**`;
-                }
-                return pattern;
-            });
-            ignoredPatterns = [...new Set([...ignoredPatterns, ...normalizedCliPatterns])];
+        // 3. 添加解析后的忽略模式
+        if (resolvedIgnores.length > 0) {
+            const normalizedPatterns = resolvedIgnores
+                .filter((p): p is string => typeof p === 'string')
+                .map(normalizePattern);
+            ignoredPatterns.push(...normalizedPatterns);
 
             if (debug) {
                 console.log("-----------------------------------------");
-                console.log("DEBUG: CLI/Config ignore patterns added:");
-                normalizedCliPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
+                console.log("DEBUG: Resolved ignore patterns:");
+                normalizedPatterns.forEach((p, i) => console.log(`  [${i}] "${p}"`));
                 console.log("-----------------------------------------");
             }
         }
+
+        // 去重
+        ignoredPatterns = [...new Set(ignoredPatterns)];
     } else if (debug) {
         console.log("-----------------------------------------");
         console.log("DEBUG: --no-ignore flag set, skipping all ignore rules");

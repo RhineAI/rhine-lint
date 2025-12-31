@@ -23,6 +23,21 @@ export type Config = {
      */
     tsconfig?: string,
     /**
+     * List of gitignore-style files to read ignore patterns from.
+     * Each file should follow .gitignore syntax.
+     * @default ['./.gitignore']
+     * @example ['./.gitignore', './.eslintignore']
+     */
+    ignoreFiles?: string[],
+    /**
+     * List of specific files or patterns to ignore.
+     * Patterns follow glob syntax.
+     * @default ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock']
+     * @example ['temp', 'generated', '*.test.ts']
+     */
+    ignores?: string[],
+    /**
+     * @deprecated Use `ignores` instead. This field will be removed in a future version.
      * Additional ignore patterns to exclude files from linting.
      * Patterns follow glob syntax.
      * @example ['temp', 'generated', '*.test.ts']

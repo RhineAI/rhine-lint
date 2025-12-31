@@ -19,6 +19,7 @@ cli
     .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
     .option("--no-project-type-check", "Disable project-based type checking (faster for single files)")
     .option("--tsconfig <path>", "Path to tsconfig file for type checking and import resolution")
+    .option("--ignore-file [path]", "Add gitignore-style file for ignore patterns (can be used multiple times)")
     .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
     .option("--no-ignore", "Disable all ignore rules (including .gitignore)")
     .option("--cache-dir <dir>", "Custom temporary cache directory")
@@ -66,7 +67,14 @@ cli
                     ? options.ignore.filter((p: unknown) => typeof p === 'string')
                     : [options.ignore];
             }
-            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore);
+            // Normalize ignore-file option to array
+            let ignoreFiles: string[] = [];
+            if (!noIgnore && options.ignoreFile && options.ignoreFile !== true) {
+                ignoreFiles = Array.isArray(options.ignoreFile)
+                    ? options.ignoreFile.filter((p: unknown) => typeof p === 'string')
+                    : [options.ignoreFile];
+            }
+            const temps = await generateTempConfig(cwd, userConfigResult, options.level, options.cacheDir, options.debug, options.projectTypeCheck, options.tsconfig, ignorePatterns, noIgnore, ignoreFiles);
             usedCachePath = temps.cachePath; // Save for cleanup
 
             // 计时：第一阶段（准备阶段）

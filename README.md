@@ -151,8 +151,9 @@ CLI 参数优先级高于配置文件：
 - `--level <level>`: 强制指定项目类型（`js`, `ts`, `frontend`, `nextjs`）。
 - `--no-project-type-check`: 禁用基于项目的类型检查 (可加快单文件处理速度)。
 - `--tsconfig <path>`: 指定 tsconfig 文件路径 (用于类型检查和 import 解析)。
+- `--ignore-file <path>`: 指定类似 `.gitignore` 的忽略文件 (支持多次使用, e.g. `--ignore-file .gitignore --ignore-file .eslintignore`)。
 - `--ignore <pattern>`: 添加忽略模式 (支持多次使用, e.g. `--ignore dist --ignore coverage`)。
-- `--no-ignore`: 强制禁用所有忽略规则 (包括 .gitignore)。
+- `--no-ignore`: 强制禁用所有忽略规则 (包括 ignoreFiles 和 ignores)。
 - `--debug`: 打印调试信息（包括生成的配置、忽略列表等）。
 - `--cache-dir <dir>`: 指定缓存目录（默认使用 `node_modules/.cache/rhine-lint`）。
 
@@ -202,37 +203,66 @@ Rhine Lint 提供了灵活的文件忽略机制，支持多种配置方式。
 以下目录始终被忽略（无需配置）：
 - `node_modules`, `dist`, `.next`, `.git`, `.output`, `.nuxt`, `coverage`, `.cache`
 
-#### 自动读取 .gitignore
+以下文件默认被忽略（可通过配置覆盖）：
+- `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`
 
-Rhine Lint 会自动解析项目根目录的 `.gitignore` 文件，将其中的模式转换为 ESLint 忽略规则。
+#### 忽略文件 ignoreFiles
 
-#### CLI 忽略选项
+Rhine Lint 会自动解析 `.gitignore` 风格的文件，将其中的模式转换为 ESLint 忽略规则。
+
+**默认值**: `['./.gitignore']`
 
 ```bash
-# 添加额外的忽略模式 (支持多次使用)
-rl --ignore temp --ignore generated --ignore "*.test.ts"
-
-# 禁用所有忽略规则 (包括 .gitignore 和默认忽略)
-rl --no-ignore
+# CLI: 指定忽略文件 (覆盖默认值，支持多次使用)
+rl --ignore-file .gitignore --ignore-file .eslintignore
 ```
-
-#### 配置文件忽略
 
 ```typescript
 // rhine-lint.config.ts
 export default {
-  ignore: ['temp', 'generated', '*.test.ts']
+  // 指定要读取的忽略文件列表
+  ignoreFiles: ['./.gitignore', './.eslintignore']
 }
+```
+
+#### 忽略模式 ignores
+
+直接指定要忽略的文件或目录模式。
+
+**默认值**: `['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock']`
+
+```bash
+# CLI: 添加忽略模式 (与配置文件合并，支持多次使用)
+rl --ignore temp --ignore generated --ignore "*.test.ts"
+```
+
+```typescript
+// rhine-lint.config.ts
+export default {
+  // 指定要忽略的文件/目录模式
+  ignores: ['temp', 'generated', '*.test.ts']
+}
+```
+
+#### 禁用忽略 --no-ignore
+
+```bash
+# 禁用所有忽略规则 (包括 ignoreFiles 和 ignores)
+rl --no-ignore
 ```
 
 #### 忽略模式优先级
 
 1. `--no-ignore` 会禁用所有忽略处理
-2. 否则，按以下顺序合并（后面的追加到前面）：
-   - 默认忽略目录
-   - `.gitignore` 解析结果
-   - 配置文件 `ignore` 数组
-   - CLI `--ignore` 参数
+2. 否则，按以下顺序合并：
+   - 默认忽略目录（始终生效）
+   - `ignoreFiles` 中各文件的解析结果
+   - `ignores` 模式列表
+
+**优先级规则**：
+- `--ignore-file`: CLI 指定时覆盖配置文件中的 `ignoreFiles`
+- `--ignore`: CLI 指定时覆盖配置文件中的 `ignores`
+- 最终 `ignoreFiles` 和 `ignores` 的结果都会生效（合并）
 
 ### 缓存目录 Cache Directory
 
@@ -303,6 +333,7 @@ cli
   .option("--level <level>", "Project level (js, ts, frontend, nextjs)")
   .option("--no-project-type-check", "Disable project-based type checking")
   .option("--tsconfig <path>", "Path to tsconfig file")
+  .option("--ignore-file [path]", "Add gitignore-style file (can be used multiple times)")
   .option("--ignore [pattern]", "Add ignore pattern (can be used multiple times)")
   .option("--no-ignore", "Disable all ignore rules")
   .option("--cache-dir <dir>", "Custom cache directory")
@@ -321,6 +352,13 @@ if (!noIgnore && options.ignore && options.ignore !== true) {
   ignorePatterns = Array.isArray(options.ignore)
     ? options.ignore.filter((p: unknown) => typeof p === 'string')
     : [options.ignore];
+}
+// --ignore-file 参数处理
+let ignoreFiles: string[] = [];
+if (!noIgnore && options.ignoreFile && options.ignoreFile !== true) {
+  ignoreFiles = Array.isArray(options.ignoreFile)
+    ? options.ignoreFile.filter((p: unknown) => typeof p === 'string')
+    : [options.ignoreFile];
 }
 ```
 
@@ -345,7 +383,8 @@ export async function generateTempConfig(
     cliProjectTypeCheck?: boolean,            // --no-project-type-check
     cliTsconfig?: string,                     // --tsconfig 参数
     cliIgnorePatterns: string[] = [],         // --ignore 参数 (数组)
-    noIgnore: boolean = false                 // --no-ignore 参数
+    noIgnore: boolean = false,                // --no-ignore 参数
+    cliIgnoreFiles: string[] = []             // --ignore-file 参数 (数组)
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string }>
 ```
 
@@ -355,6 +394,15 @@ export async function generateTempConfig(
    ```typescript
    const projectTypeCheck = cliProjectTypeCheck ?? userConfigResult.config.projectTypeCheck ?? true;
    const tsconfigPath = cliTsconfig ?? userConfigResult.config.tsconfig;
+   // ignoreFiles: CLI 覆盖 config 覆盖默认值
+   const resolvedIgnoreFiles = cliIgnoreFiles.length > 0
+       ? cliIgnoreFiles
+       : (userConfigResult.config.ignoreFiles ?? DEFAULT_IGNORE_FILES);
+   // ignores: CLI 覆盖 config 覆盖默认值
+   const resolvedIgnores = cliIgnorePatterns.length > 0
+       ? cliIgnorePatterns
+       : (configIgnores.length > 0 ? configIgnores : DEFAULT_IGNORES);
+   // 最终 ignoreFiles 和 ignores 都会生效
    ```
 
 2. **智能缓存 (SHA-256 指纹)**:
@@ -364,14 +412,18 @@ export async function generateTempConfig(
    hash.update(cliLevel || "default");
    hash.update(projectTypeCheck ? "ptc-on" : "ptc-off");
    hash.update(tsconfigPath || "default-tsconfig");
-   hash.update(cliIgnorePatterns.join(",") || "no-cli-ignore");
+   hash.update(resolvedIgnoreFiles.join(",") || "no-ignore-files");
+   hash.update(resolvedIgnores.join(",") || "no-ignores");
    hash.update(noIgnore ? "no-ignore" : "with-ignore");
-   // + 用户配置文件内容 + .gitignore 内容
+   // + 用户配置文件内容 + 各忽略文件内容
    ```
 
 3. **忽略模式处理**:
    - 若 `--no-ignore`，跳过所有忽略处理
-   - 否则：解析 `.gitignore` → 合并默认忽略 → 合并 CLI/Config 忽略
+   - 否则：
+     1. 添加默认始终忽略的目录
+     2. 解析所有 `ignoreFiles` 中的文件
+     3. 添加 `ignores` 模式列表
    - 模式规范化：自动添加 `**/` 前缀和 `/**` 后缀
 
 4. **生成虚拟配置**: 动态生成 `eslint.config.mjs` 内容，包含：
