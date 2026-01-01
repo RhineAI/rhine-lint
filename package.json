@@ -1,6 +1,6 @@
 {
   "name": "rhine-lint",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "module": "./dist/index.js",
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +34,6 @@
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-assets.js",
-    "prepublishOnly": "npm run build",
     "test": "echo All tests passed."
   },
   "dependencies": {
