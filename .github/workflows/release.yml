@@ -1,0 +1,87 @@
+name: Auto Publish via package version
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+
+jobs:
+  Version:
+    name: Analysis Version
+    runs-on: ubuntu-latest
+    outputs:
+      version_changed: ${{ steps.detect.outputs.version_changed }}
+      current_version: ${{ steps.detect.outputs.current_version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect version change
+        id: detect
+        run: |
+          CURRENT_VERSION=$(jq -r .version package.json)
+          echo "Current version: $CURRENT_VERSION"
+
+          git checkout HEAD~1 -- package.json 2>/dev/null || true
+          PREVIOUS_VERSION=$(jq -r .version package.json 2>/dev/null || echo "0.0.0")
+          echo "Previous version: $PREVIOUS_VERSION"
+
+          # Restore current package.json
+          git checkout HEAD -- package.json
+
+          if [[ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]]; then
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+            echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            echo "✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+          else
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version unchanged, skipping publish"
+          fi
+
+  Publish:
+    name: Publish to NPM
+    needs: Version
+    if: ${{ needs.Version.outputs.version_changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 'latest'
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Unit Tests
+        run: bun run test
+
+      - name: Build Project
+        run: bun run build
+
+      - name: Verify Build Artifacts
+        run: |
+          echo "Verifying build artifacts..."
+          test -d dist || { echo "❌ dist directory not found"; exit 1; }
+          test -f LICENSE || { echo "❌ LICENSE file not found"; exit 1; }
+          test -f README.md || { echo "❌ README.md file not found"; exit 1; }
+          test -f README_ZH.md || { echo "❌ README_ZH.md file not found"; exit 1; }
+          test -f package.json || { echo "❌ package.json file not found"; exit 1; }
+          echo "✅ All required files verified"
+
+      - name: Setup NodeJs for NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

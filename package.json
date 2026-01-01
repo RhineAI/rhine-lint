@@ -29,6 +29,7 @@
   "files": [
     "dist",
     "LICENSE",
+    "README.md",
     "README_ZH.md"
   ],
   "scripts": {
