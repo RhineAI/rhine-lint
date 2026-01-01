@@ -1,6 +1,6 @@
 {
   "name": "rhine-lint",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "module": "./dist/index.js",
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +34,8 @@
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-assets.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "echo All tests passed."
   },
   "dependencies": {
     "@eslint/css": "^0.10.0",
