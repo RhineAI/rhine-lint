@@ -1,7 +1,20 @@
 import path from "node:path";
 import readline from "node:readline";
 import fs from "fs-extra";
-import { logInfo, logSuccess, logError } from "../utils/logger.js";
+import { colors } from "consola/utils";
+import {
+    logInfo,
+    logSuccess,
+    logError,
+    logBox,
+    logDivider,
+    logStep,
+    logDetected,
+    logSummaryItem,
+    logHint,
+} from "../utils/logger.js";
+
+const { cyan, green, dim, bold } = colors;
 
 interface DetectedFeatures {
     typescript: boolean;
@@ -31,9 +44,12 @@ function createReadline(): readline.Interface {
  * Ask a yes/no question with default value
  */
 async function askConfirm(rl: readline.Interface, question: string, defaultYes: boolean = true): Promise<boolean> {
-    const hint = defaultYes ? "[Y/n]" : "[y/N]";
+    const hint = defaultYes
+        ? `${green("Y")}${dim("/")}${dim("N")}`
+        : `${dim("Y")}${dim("/")}${green("N")}`;
+
     return new Promise((resolve) => {
-        rl.question(`${question} ${hint} `, (answer) => {
+        rl.question(`  ${cyan("?")} ${question} ${dim("[")}${hint}${dim("]")} `, (answer) => {
             const trimmed = answer.trim().toLowerCase();
             if (trimmed === "") {
                 resolve(defaultYes);
@@ -49,27 +65,38 @@ async function askConfirm(rl: readline.Interface, question: string, defaultYes: 
 /**
  * Ask a single choice question
  */
-async function askSelect(rl: readline.Interface, question: string, options: string[], defaultIndex: number = 0): Promise<string> {
-    console.log(question);
+async function askSelect(
+    rl: readline.Interface,
+    question: string,
+    options: { value: string; label: string }[],
+    defaultIndex: number = 0
+): Promise<string> {
+    console.log(`  ${cyan("?")} ${question}`);
+    console.log();
+
     options.forEach((opt, i) => {
-        const marker = i === defaultIndex ? ">" : " ";
-        console.log(`  ${marker} ${i + 1}. ${opt}`);
+        const isDefault = i === defaultIndex;
+        const marker = isDefault ? green("●") : dim("○");
+        const defaultHint = isDefault ? dim(" (default)") : "";
+        console.log(`    ${marker} ${dim(`${i + 1}.`)} ${opt.label}${defaultHint}`);
     });
 
+    console.log();
+
     return new Promise((resolve) => {
-        rl.question(`Enter number [${defaultIndex + 1}]: `, (answer) => {
+        rl.question(`  ${dim("Enter number")} ${dim("[")}${green(String(defaultIndex + 1))}${dim("]:")} `, (answer) => {
             const trimmed = answer.trim();
             if (trimmed === "") {
                 const result = options[defaultIndex];
-                resolve(result !== undefined ? result : options[0]!);
+                resolve(result !== undefined ? result.value : options[0]!.value);
             } else {
                 const num = parseInt(trimmed, 10);
                 if (num >= 1 && num <= options.length) {
                     const result = options[num - 1];
-                    resolve(result !== undefined ? result : options[0]!);
+                    resolve(result !== undefined ? result.value : options[0]!.value);
                 } else {
                     const result = options[defaultIndex];
-                    resolve(result !== undefined ? result : options[0]!);
+                    resolve(result !== undefined ? result.value : options[0]!.value);
                 }
             }
         });
@@ -142,13 +169,16 @@ function determineLevel(features: DetectedFeatures): "normal" | "react" | "next"
 }
 
 /**
- * Generate rhine-lint.config.ts content
+ * Generate rhine-lint.config content
  */
 function generateConfigContent(options: InitOptions): string {
     const lines: string[] = [];
 
-    lines.push(`import { type Config } from 'rhine-lint';`);
-    lines.push(``);
+    if (options.typescript) {
+        lines.push(`import { type Config } from 'rhine-lint';`);
+        lines.push(``);
+    }
+
     lines.push(`export default {`);
 
     // Level
@@ -198,7 +228,12 @@ function generateConfigContent(options: InitOptions): string {
     lines.push(`      // semi: true,`);
     lines.push(`    }`);
     lines.push(`  }`);
-    lines.push(`} as Config;`);
+
+    if (options.typescript) {
+        lines.push(`} as Config;`);
+    } else {
+        lines.push(`};`);
+    }
 
     return lines.join("\n");
 }
@@ -214,9 +249,23 @@ async function addScriptsToPackageJson(cwd: string): Promise<void> {
         pkgJson.scripts["lint"] = "rl";
         pkgJson.scripts["lint:fix"] = "rl --fix";
         await fs.writeJson(pkgPath, pkgJson, { spaces: 2 });
-        logSuccess("Added 'lint' and 'lint:fix' scripts to package.json");
+        logSuccess(`Added ${bold("lint")} and ${bold("lint:fix")} scripts to package.json`);
     } catch (e) {
         logError("Failed to update package.json", e);
+    }
+}
+
+/**
+ * Get level display label
+ */
+function getLevelLabel(level: "normal" | "react" | "next"): string {
+    switch (level) {
+        case "next":
+            return "Next.js (includes React rules)";
+        case "react":
+            return "React";
+        default:
+            return "Normal (JavaScript/TypeScript only)";
     }
 }
 
@@ -224,7 +273,9 @@ async function addScriptsToPackageJson(cwd: string): Promise<void> {
  * Initialize rhine-lint configuration with interactive prompts
  */
 export async function initConfig(cwd: string): Promise<void> {
-    logInfo("Initializing Rhine Lint configuration...");
+    // Print welcome box
+    console.log();
+    logBox("Rhine Lint", "Zero-config linting solution");
     console.log();
 
     // Check if config already exists
@@ -240,14 +291,27 @@ export async function initConfig(cwd: string): Promise<void> {
         const configPath = path.join(cwd, configFile);
         if (await fs.pathExists(configPath)) {
             logError(`Configuration file already exists: ${configFile}`);
-            logInfo("Please remove the existing config file first if you want to reinitialize.");
+            logHint("Remove the existing config file first if you want to reinitialize.");
             process.exit(1);
         }
     }
 
     // Detect features
+    logStep(1, 4, "Detecting project features...");
+    console.log();
+
     const features = await detectFeatures(cwd);
     const detectedLevel = determineLevel(features);
+
+    logDetected("TypeScript", features.typescript);
+    logDetected("React", features.react);
+    logDetected("Next.js", features.next);
+    logDetected("Sass/SCSS", features.sass);
+    logDetected("Recommended level", getLevelLabel(detectedLevel));
+
+    console.log();
+    logDivider();
+    console.log();
 
     // Create readline interface
     const rl = createReadline();
@@ -261,42 +325,60 @@ export async function initConfig(cwd: string): Promise<void> {
             addScripts: true,
         };
 
-        // 1. Ask about level
-        const levelDescription = detectedLevel === "next"
-            ? "Next.js (includes React rules)"
-            : detectedLevel === "react"
-                ? "React"
-                : "Normal (JavaScript/TypeScript only)";
+        // Step 2: Configure options
+        logStep(2, 4, "Configure options");
+        console.log();
 
-        console.log(`Detected project level: ${detectedLevel} (${levelDescription})`);
-        const confirmLevel = await askConfirm(rl, `Use level '${detectedLevel}'?`, true);
+        // 1. Ask about level
+        const confirmLevel = await askConfirm(rl, `Use detected level ${bold(detectedLevel)}?`, true);
 
         if (!confirmLevel) {
-            const selectedLevel = await askSelect(rl, "Select project level:", ["normal", "react", "next"],
-                detectedLevel === "next" ? 2 : detectedLevel === "react" ? 1 : 0);
+            console.log();
+            const levelOptions = [
+                { value: "normal", label: "Normal - JavaScript/TypeScript only" },
+                { value: "react", label: "React - Includes React/Hooks/JSX rules" },
+                { value: "next", label: "Next.js - Includes React + Next.js rules" },
+            ];
+            const defaultIdx = detectedLevel === "next" ? 2 : detectedLevel === "react" ? 1 : 0;
+            const selectedLevel = await askSelect(rl, "Select project level:", levelOptions, defaultIdx);
             options.level = selectedLevel as "normal" | "react" | "next";
         }
+
         console.log();
 
         // 2. Ask about TypeScript
-        const tsDetected = features.typescript ? "detected" : "not detected";
-        console.log(`TypeScript: ${tsDetected}`);
-        options.typescript = await askConfirm(rl, "Enable TypeScript support?", features.typescript);
-        console.log();
+        options.typescript = await askConfirm(
+            rl,
+            `Enable TypeScript support?`,
+            features.typescript
+        );
 
         // 3. Ask about projectTypeCheck (only if TypeScript is enabled)
         if (options.typescript) {
-            console.log("Project-based type checking provides more accurate linting but is slower.");
-            options.projectTypeCheck = await askConfirm(rl, "Enable project-based type checking?", true);
             console.log();
+            logHint("Project-based type checking is more accurate but slower");
+            options.projectTypeCheck = await askConfirm(rl, "Enable project-based type checking?", true);
         }
 
+        console.log();
+
         // 4. Ask about adding scripts to package.json
-        options.addScripts = await askConfirm(rl, "Add 'lint' and 'lint:fix' scripts to package.json?", true);
+        options.addScripts = await askConfirm(
+            rl,
+            `Add ${bold("lint")} and ${bold("lint:fix")} scripts to package.json?`,
+            true
+        );
+
+        console.log();
+        logDivider();
         console.log();
 
         // Close readline
         rl.close();
+
+        // Step 3: Generate files
+        logStep(3, 4, "Generating configuration files...");
+        console.log();
 
         // Generate config content
         const configContent = generateConfigContent(options);
@@ -307,7 +389,7 @@ export async function initConfig(cwd: string): Promise<void> {
 
         // Write config file
         await fs.writeFile(outputPath, configContent, "utf-8");
-        logSuccess(`Created ${outputFile}`);
+        logSuccess(`Created ${bold(outputFile)}`);
 
         // Add scripts to package.json if requested
         if (options.addScripts) {
@@ -315,14 +397,25 @@ export async function initConfig(cwd: string): Promise<void> {
         }
 
         console.log();
-        logInfo("Configuration summary:");
-        logInfo(`  Level: ${options.level}`);
-        logInfo(`  TypeScript: ${options.typescript}`);
-        if (options.typescript) {
-            logInfo(`  Project Type Check: ${options.projectTypeCheck}`);
-        }
+        logDivider();
         console.log();
-        logInfo("You can now run 'rl' to lint your project.");
+
+        // Step 4: Summary
+        logStep(4, 4, "Configuration complete!");
+        console.log();
+
+        logInfo("Configuration summary:");
+        logSummaryItem("Level", options.level);
+        logSummaryItem("TypeScript", options.typescript);
+        if (options.typescript) {
+            logSummaryItem("Project Type Check", options.projectTypeCheck);
+        }
+        logSummaryItem("Scripts added", options.addScripts);
+
+        console.log();
+        logInfo(`Run ${bold(cyan("rl"))} to lint your project.`);
+        logInfo(`Run ${bold(cyan("rl --fix"))} to auto-fix issues.`);
+        console.log();
 
     } catch (e) {
         rl.close();
