@@ -13,6 +13,7 @@ import {
     logSummaryItem,
     logHint,
 } from "../utils/logger.js";
+import { loadUserConfig, generateTempConfig } from "./config.js";
 
 const { cyan, green, dim, bold } = colors;
 
@@ -395,6 +396,21 @@ export async function initConfig(cwd: string): Promise<void> {
         if (options.addScripts) {
             await addScriptsToPackageJson(cwd);
         }
+
+        // Pre-generate ESLint/Prettier config files
+        logInfo("Generating ESLint and Prettier configurations...");
+        const userConfigResult = await loadUserConfig(cwd);
+        const { eslintPath, prettierPath } = await generateTempConfig(
+            cwd,
+            userConfigResult,
+            options.level,
+            options.typescript,
+            undefined,
+            false,
+            options.projectTypeCheck
+        );
+        logSuccess(`Generated ${bold("eslint.config.mjs")}`);
+        logSuccess(`Generated ${bold("prettier.config.mjs")}`);
 
         console.log();
         logDivider();
