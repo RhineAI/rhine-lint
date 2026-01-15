@@ -427,43 +427,38 @@ Use the [Run on Save](https://marketplace.visualstudio.com/items?itemName=emeral
 
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
-Use File Watchers to trigger auto-fix on save. You need to create two watchers: Quick Fix (formatting only) and Full Fix (complete check).
+Use File Watchers to trigger auto-fix on save. You need to create a file watcher to trigger Prettier commands.
 
-#### Step 1: Create File Watcher
+#### Step 0: Preparation
+
+1. Make sure rhine-lint is installed and you have run any `rl` command at least once (to ensure ESLint and Prettier config files are generated to the cache directory). If not, run `rl init` to initialize and generate configs.
+
+#### Step 1: Configure Prettier Fix on Save
 
 1. Open `Settings` → `Tools` → `File Watchers`
 2. Click `+` → Select `<custom>` template
-
-#### Step 2: Configure Quick Fix (Fast Formatting)
+3. Enter the following settings:
 
 | Setting | Value |
 |---------|-------|
-| Name | `Rhine Lint Quick Fix` |
+| Name | `Rhine Lint Prettier` |
 | File type | `Any` |
 | Program | `$ProjectFileDir$/node_modules/.bin/rl` |
 | Arguments | `"$FilePath$" --fix --only-prettier` |
 | Output paths to refresh | `$FilePath$` |
 | Working directory | `$ProjectFileDir$` |
 
-Uncheck `Auto-save edited files to trigger the watcher` in `Advanced Options`.
+4. In `Advanced Options`, uncheck `Auto-save edited files to trigger the watcher`. (This prevents overly frequent auto-updates during development; you can manually trigger with Ctrl+S)
+5. Click OK to confirm the template, then click Apply to enable.
 
-#### Step 3: Configure Full Fix (Complete Repair)
+#### Step 2: Configure ESLint Fix on Save
 
-1. Select the `Rhine Lint Quick Fix` you just created, click the copy button
-2. Modify the following settings:
-
-| Setting | Value |
-|---------|-------|
-| Name | `Rhine Lint Fix` |
-| Arguments | `"$FilePath$" --fix --no-project-type-check` |
-
-#### Step 4: Disable Conflicting Features
-
-Open `Settings` → `Tools` → `Actions on Save`, disable the following options to avoid conflicts:
-- Reformat code
-- Optimize imports
-- Run eslint --fix
-- Run Prettier
+1. Open `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
+2. Select Manual ESLint configuration
+3. In ESLint Package, select path `{project-path}\node_modules\eslint`
+4. In Working directories, select your project path
+5. In Configuration File, select path `{project-path}\node_modules\.cache\rhine-lint\eslint.config.mjs`
+6. Check `Run eslint --fix on save` at the bottom
 
 ## Implementation Insights
 

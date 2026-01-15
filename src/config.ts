@@ -106,7 +106,7 @@ export type Config = {
          * ```
          */
         config?: [
-            // EsLint Config
+            // ESLint Config
         ],
         /**
          * Overlay mode for ESLint configuration.

@@ -427,43 +427,37 @@ Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集。
 
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
-通过 File Watchers 实现保存时自动修复。需要创建两个监听器：Quick Fix（仅格式化）和 Full Fix（完整检查）。
+通过 File Watchers 实现保存时自动修复。需要创建一个为触发 Prettier 命令的文件监听器。
 
-#### 步骤一：创建 File Watcher
+#### 步骤零：准备工作
+1. 确保已经安装 rhine-lint，并且运行过任意一条rl命令（确保初次生成了eslint和prettier配置文件到缓存区），若没有运行过，可运行 rhine-lint 进行初次配置和生成。
+
+#### 步骤一：配置保存时触发 Prettier 修复
 
 1. 打开 `Settings` → `Tools` → `File Watchers`
 2. 点击 `+` → 选择 `<custom>` 模板
+3. 输入如下信息
 
-#### 步骤二：配置 Quick Fix（快速格式化）
-
-| 配置项 | 值 |
-|--------|-----|
-| Name | `Rhine Lint Quick Fix` |
-| File type | `Any` |
+| 配置项 | 值                                       |
+|--------|-----------------------------------------|
+| Name | `Rhine Lint Prettier`                   |
+| File type | `Any`                                   |
 | Program | `$ProjectFileDir$/node_modules/.bin/rl` |
-| Arguments | `"$FilePath$" --fix --only-prettier` |
-| Output paths to refresh | `$FilePath$` |
-| Working directory | `$ProjectFileDir$` |
+| Arguments | `"$FilePath$" --fix --only-prettier`    |
+| Output paths to refresh | `$FilePath$`                            |
+| Working directory | `$ProjectFileDir$`                      |
 
-在 `Advanced Options` 中取消勾选 `Auto-save edited files to trigger the watcher`。
+4. 在 `Advanced Options` 中取消勾选 `Auto-save edited files to trigger the watcher`。（避免过于频繁的自动更新影响开发，可以主动按 ctrl+s 触发）
+5. 点击 OK 按钮确定模板，再点击 Apply 按钮启用。
 
-#### 步骤三：配置 Full Fix（完整修复）
+#### 步骤二：配置保存时触发 ESLint 修复
 
-1. 选中刚创建的 `Rhine Lint Quick Fix`，点击复制按钮
-2. 修改以下配置：
-
-| 配置项 | 值 |
-|--------|-----|
-| Name | `Rhine Lint Fix` |
-| Arguments | `"$FilePath$" --fix --no-project-type-check` |
-
-#### 步骤四：禁用冲突功能
-
-打开 `Settings` → `Tools` → `Actions on Save`，关闭以下选项以避免冲突：
-- Reformat code
-- Optimize imports
-- Run eslint --fix
-- Run Prettier
+1. 打开 `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
+2. 选择 Manual ESLint configuration
+3. ESLint Package 中选择路径 {项目路径}\node_modules\eslint
+4. Working directories 中选择你的项目路径
+5. Configuration File 中选择路径 {项目路径}\node_modules\.cache\rhine-lint\eslint.config.mjs
+6. 勾选底部 Run eslint --fix on save
 
 ## 技术实现与原理 Implementation Insights
 
