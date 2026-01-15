@@ -454,10 +454,10 @@ Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集。
 
 1. 打开 `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
 2. 选择 Manual ESLint configuration
-3. ESLint Package 中选择路径 {项目路径}\node_modules\eslint
+3. ESLint Package 中选择路径 `{项目路径}\node_modules\eslint`
 4. Working directories 中选择你的项目路径
-5. Configuration File 中选择路径 {项目路径}\node_modules\.cache\rhine-lint\eslint.config.mjs
-6. 勾选底部 Run eslint --fix on save
+5. Configuration File 中选择路径 `{项目路径}\node_modules\.cache\rhine-lint\eslint.config.mjs`
+6. 勾选底部 `Run eslint --fix on save`
 
 ## 技术实现与原理 Implementation Insights
 
