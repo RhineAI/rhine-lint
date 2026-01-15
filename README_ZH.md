@@ -41,6 +41,73 @@ yarn add -D rhine-lint
 
 ## 快速开始 Quick Start
 
+### 初始化配置
+
+最快的入门方式是使用 `rl init` 命令：
+
+```bash
+rl init
+```
+
+这个交互式向导会：
+1. **检测项目特性** - 自动扫描 `package.json` 检测 TypeScript、React、Next.js、Sass
+2. **配置选项** - 提示你确认或自定义：
+   - 项目级别 (normal/react/next)
+   - TypeScript 支持
+   - 基于项目的类型检查
+3. **生成配置文件** - 创建 `rhine-lint.config.ts`（非 TypeScript 项目则为 `.js`）
+4. **添加 npm scripts** - 可选择添加 `lint` 和 `lint:fix` 脚本到 `package.json`
+5. **预生成配置** - 生成 ESLint 和 Prettier 配置，加快首次运行速度
+
+示例输出：
+```
++------------------------------------------------+
+|                                                |
+|                  Rhine Lint                    |
+|           Zero-config linting solution         |
+|                                                |
++------------------------------------------------+
+
+[1/4] Detecting project features...
+
+  • TypeScript: ✓
+  • React: ✓
+  • Next.js: ✗
+  • Sass/SCSS: ✗
+  • Recommended level: React
+
+--------------------------------------------------
+
+[2/4] Configure options
+
+  ? Use detected level react? [Y/N]
+  ? Enable TypeScript support? [Y/N]
+  ? Enable project-based type checking? [Y/N]
+  ? Add lint and lint:fix scripts to package.json? [Y/N]
+
+--------------------------------------------------
+
+[3/4] Generating configuration files...
+
+RL Created rhine-lint.config.ts
+RL Added lint and lint:fix scripts to package.json
+RL Generated eslint.config.mjs
+RL Generated prettier.config.mjs
+
+--------------------------------------------------
+
+[4/4] Configuration complete!
+
+RL Configuration summary:
+  • Level: react
+  • TypeScript: enabled
+  • Project Type Check: enabled
+  • Scripts added: enabled
+
+RL Run rl to lint your project.
+RL Run rl --fix to auto-fix issues.
+```
+
 ### 命令行使用 (CLI)
 
 安装完成后，你可以直接使用 `rl` 命令：

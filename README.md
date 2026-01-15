@@ -41,6 +41,73 @@ yarn add -D rhine-lint
 
 ## Quick Start
 
+### Initialize Configuration
+
+The quickest way to get started is using the `rl init` command:
+
+```bash
+rl init
+```
+
+This interactive wizard will:
+1. **Detect project features** - Automatically scans `package.json` for TypeScript, React, Next.js, Sass
+2. **Configure options** - Prompts you to confirm or customize:
+   - Project level (normal/react/next)
+   - TypeScript support
+   - Project-based type checking
+3. **Generate config file** - Creates `rhine-lint.config.ts` (or `.js` for non-TypeScript projects)
+4. **Add npm scripts** - Optionally adds `lint` and `lint:fix` scripts to `package.json`
+5. **Pre-generate configs** - Generates ESLint and Prettier configurations for faster first run
+
+Example output:
+```
++------------------------------------------------+
+|                                                |
+|                  Rhine Lint                    |
+|           Zero-config linting solution         |
+|                                                |
++------------------------------------------------+
+
+[1/4] Detecting project features...
+
+  • TypeScript: ✓
+  • React: ✓
+  • Next.js: ✗
+  • Sass/SCSS: ✗
+  • Recommended level: React
+
+--------------------------------------------------
+
+[2/4] Configure options
+
+  ? Use detected level react? [Y/N]
+  ? Enable TypeScript support? [Y/N]
+  ? Enable project-based type checking? [Y/N]
+  ? Add lint and lint:fix scripts to package.json? [Y/N]
+
+--------------------------------------------------
+
+[3/4] Generating configuration files...
+
+RL Created rhine-lint.config.ts
+RL Added lint and lint:fix scripts to package.json
+RL Generated eslint.config.mjs
+RL Generated prettier.config.mjs
+
+--------------------------------------------------
+
+[4/4] Configuration complete!
+
+RL Configuration summary:
+  • Level: react
+  • TypeScript: enabled
+  • Project Type Check: enabled
+  • Scripts added: enabled
+
+RL Run rl to lint your project.
+RL Run rl --fix to auto-fix issues.
+```
+
 ### CLI Usage
 
 After installation, you can use the `rl` command directly:
