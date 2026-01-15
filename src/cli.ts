@@ -28,8 +28,16 @@ interface CliOptions {
 }
 
 cli
+    .command("init", "Initialize rhine-lint configuration")
+    .action(async () => {
+        const { initConfig } = await import("./core/init.js");
+        await initConfig(process.cwd());
+    });
+
+cli
     .command("[...files]", "Lint files")
-    .option("--fix", "Fix lint errors")
+    .option("--fix", "Fix lint errors (overrides config file)")
+    .option("--no-fix", "Disable auto-fix (overrides config file)")
     .option("--config <path>", "Path to config file")
     .option("--level <level>", "Project level (normal, react, next)")
     .option("--no-typescript", "Disable TypeScript support (JavaScript only mode)")
@@ -111,6 +119,10 @@ cli
             }
             console.log();
 
+            // 确定 fix 模式：CLI (--fix/--no-fix) > 配置文件 > 默认 false
+            // options.fix 为 true 表示 --fix，为 false 表示 --no-fix，为 undefined 表示未设置
+            const fix = options.fix ?? userConfigResult.config.fix ?? false;
+
             // 确定是否启用 ESLint 和 Prettier
             // --only-eslint: 只运行 ESLint，跳过 Prettier (CLI 优先于配置文件)
             // --only-prettier: 只运行 Prettier，跳过 ESLint (CLI 优先于配置文件)
@@ -134,7 +146,7 @@ cli
 
             // 3. Run ESLint
             if (enableEslint) {
-                eslintResult = await runEslint(cwd, temps.eslintPath, options.fix ?? false, targetFiles);
+                eslintResult = await runEslint(cwd, temps.eslintPath, fix, targetFiles);
 
                 // 计时：第二阶段（ESLint）
                 if (showTime) {
@@ -149,7 +161,7 @@ cli
 
             // 4. Run Prettier
             if (enablePrettier) {
-                prettierResult = await runPrettier(cwd, temps.prettierPath, options.fix ?? false, targetFiles);
+                prettierResult = await runPrettier(cwd, temps.prettierPath, fix, targetFiles);
 
                 // 计时：第三阶段（Prettier）
                 if (showTime) {

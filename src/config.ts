@@ -5,6 +5,12 @@
  */
 export type Config = {
     /**
+     * Automatically fix lint errors when possible.
+     * Can be overridden by CLI flags: --fix enables, --no-fix disables.
+     * @default false
+     */
+    fix?: boolean,
+    /**
      * Project level that determines which linting rules to enable.
      * Each level includes all rules from previous levels:
      * - `'normal'`: Base rules (JS or TS depending on `typescript` option)
@@ -32,12 +38,6 @@ export type Config = {
      * @default 'node_modules/.cache/rhine-lint' (if node_modules exists) or '.cache/rhine-lint'
      */
     cacheDir?: string,
-    /**
-     * Automatically fix linting errors and formatting issues.
-     * When enabled, ESLint will apply auto-fixes and Prettier will rewrite files.
-     * @default false
-     */
-    fix?: boolean,
     /**
      * Enable timing output for each phase.
      * Shows elapsed time for: preparation, ESLint, and Prettier phases.
