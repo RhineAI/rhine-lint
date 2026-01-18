@@ -35,6 +35,56 @@ cli
     });
 
 cli
+    .command("config", "Generate ESLint and Prettier config files (force regenerate)")
+    .action(async () => {
+        const cwd = process.cwd();
+        try {
+            logInfo(`Starting Rhine Lint v${version}`);
+
+            // Load user config
+            const userConfigResult = await loadUserConfig(cwd);
+            if (userConfigResult.path) {
+                const relativePath = path.relative(cwd, userConfigResult.path);
+                const displayPath = relativePath.startsWith('..') ? userConfigResult.path : relativePath;
+                logInfo(`Using config: ${displayPath}`);
+            } else {
+                logInfo("Using default configuration");
+            }
+
+            // Generate config files with forceRegenerate = true
+            const temps = await generateTempConfig(
+                cwd,
+                userConfigResult,
+                undefined, // cliLevel
+                undefined, // cliTypescript
+                undefined, // cliCacheDir
+                false,     // debug
+                undefined, // cliProjectTypeCheck
+                undefined, // cliTsconfig
+                [],        // cliIgnorePatterns
+                false,     // noIgnore
+                [],        // cliIgnoreFiles
+                true       // forceRegenerate
+            );
+
+            const typescript = userConfigResult.config.typescript ?? true;
+            const projectTypeCheck = userConfigResult.config.projectTypeCheck ?? true;
+            let modeStr = typescript ? "TypeScript" : "JavaScript";
+            if (typescript && projectTypeCheck) {
+                modeStr += " - Project Base";
+            }
+            logInfo(`Using level: ${temps.resolvedLevel} (${modeStr})`);
+
+            logSuccess("Config files generated successfully:");
+            logInfo(`  ESLint config: ${temps.eslintPath}`);
+            logInfo(`  Prettier config: ${temps.prettierPath}`);
+        } catch (e) {
+            logError("Failed to generate config files.", e);
+            process.exit(1);
+        }
+    });
+
+cli
     .command("[...files]", "Lint files")
     .option("--fix", "Fix lint errors (overrides config file)")
     .option("--no-fix", "Disable auto-fix (overrides config file)")

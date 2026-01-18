@@ -123,7 +123,8 @@ export async function generateTempConfig(
     cliTsconfig?: string,
     cliIgnorePatterns: string[] = [],
     noIgnore: boolean = false,
-    cliIgnoreFiles: string[] = []
+    cliIgnoreFiles: string[] = [],
+    forceRegenerate: boolean = false
 ): Promise<{ eslintPath: string; prettierPath: string; cachePath: string; resolvedLevel: string }> {
 
     const cachePath = getCacheDir(cwd, userConfigResult.config, cliCacheDir);
@@ -198,7 +199,8 @@ export async function generateTempConfig(
         }
         calculatedHash = hash.digest("hex");
 
-        if (await fs.pathExists(metaPath)) {
+        // Skip cache check if forceRegenerate is true
+        if (!forceRegenerate && await fs.pathExists(metaPath)) {
             const meta = await fs.readJson(metaPath);
             if (meta.hash === calculatedHash && await fs.pathExists(eslintTempPath) && await fs.pathExists(prettierTempPath)) {
                 logger.debug(`Cache hit! Configs reused from ${cachePath}`);
