@@ -408,71 +408,100 @@ When `level` is not specified, Rhine Lint automatically analyzes `dependencies` 
 
 ### VS Code (Cursor, Antigravity, ...)
 
-Use the [Run on Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave) extension to trigger auto-fix on save.
+#### Step 0: Preparation
+1. Make sure RhineLint is installed with command `bun add -D rhine-lint`
+2. Run `rl init` to initialize and configure your rules (optional)
 
-1. Install extension: `emeraldwalk.RunOnSave`
-2. Add to `.vscode/settings.json`:
+#### Step 1: Configure Prettier Fix on Save
+
+1. Run `rl config` to generate config files in cache
+2. Create `prettier.config.js` in project root and write:
+```javascript
+export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
+```
+Since VS Code's Prettier extension cannot directly specify config file path in cache directory yet, we need to manually point to rhine-lint's cache config file.
+
+3. Install Prettier extension: `esbenp.prettier-vscode`
+4. Add to `.vscode/settings.json`:
 
 ```json
 {
-  "emeraldwalk.runonsave": {
-    "commands": [
-      {
-        "match": "\\.(js|jsx|ts|tsx|css|scss|md|json)$",
-        "cmd": "${workspaceFolder}/node_modules/.bin/rl \"${file}\" --fix --only-prettier"
-      },
-      {
-        "match": "\\.(js|jsx|ts|tsx)$",
-        "cmd": "${workspaceFolder}/node_modules/.bin/rl \"${file}\" --fix --no-project-type-check"
-      }
-    ]
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
 ```
 
-3. Disable VS Code's built-in formatting to avoid conflicts:
+#### Step 2: Configure ESLint Fix on Save
+
+1. Install ESLint extension: `dbaeumer.vscode-eslint`
+2. Add to `.vscode/settings.json`:
 
 ```json
 {
-  "editor.formatOnSave": false,
-  "editor.codeActionsOnSave": {}
+  "eslint.enable": true,
+  "eslint.options": {
+    "overrideConfigFile": "./node_modules/.cache/rhine-lint/eslint.config.mjs"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
 }
 ```
 
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
-Use File Watchers to trigger auto-fix on save. You need to create a file watcher to trigger Prettier commands.
-
 #### Step 0: Preparation
-
-1. Make sure rhine-lint is installed and you have run any `rl` command at least once (to ensure ESLint and Prettier config files are generated to the cache directory). If not, run `rl init` to initialize and generate configs.
+1. Make sure RhineLint is installed with command `bun add -D rhine-lint`
+2. Run `rl init` to initialize and configure your rules (optional)
 
 #### Step 1: Configure Prettier Fix on Save
 
-1. Open `Settings` → `Tools` → `File Watchers`
-2. Click `+` → Select `<custom>` template
-3. Enter the following settings:
-
-| Setting | Value |
-|---------|-------|
-| Name | `Rhine Lint Prettier` |
-| File type | `Any` |
-| Program | `$ProjectFileDir$/node_modules/.bin/rl` |
-| Arguments | `"$FilePath$" --fix --only-prettier` |
-| Output paths to refresh | `$FilePath$` |
-| Working directory | `$ProjectFileDir$` |
-
-4. In `Advanced Options`, uncheck `Auto-save edited files to trigger the watcher`. (This prevents overly frequent auto-updates during development; you can manually trigger with Ctrl+S)
-5. Click OK to confirm the template, then click Apply to enable.
+1. Run `rl config` to generate config files in cache
+2. Create `prettier.config.js` in project root and write:
+```javascript
+export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
+```
+Since `JetBrains IDE`'s built-in Prettier save trigger tool cannot specify config file path yet, we need to manually point to rhine-lint's cache config file.
+3. Open `Languages & Frameworks` → `JavaScript` → `Prettier`
+4. Select `Manual Prettier configuration`
+5. In `Prettier package`, select path `{project-path}\node_modules\prettier`
+6. In `Path to .prettierignore`, you can select your `.gitignore` file
+7. Check `Run on 'Reformat Code' action`
+8. Check `Run on save`
+9. Check `Run on paste`
 
 #### Step 2: Configure ESLint Fix on Save
 
 1. Open `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
-2. Select Manual ESLint configuration
-3. In ESLint Package, select path `{project-path}\node_modules\eslint`
-4. In Working directories, select your project path
-5. In Configuration File, select path `{project-path}\node_modules\.cache\rhine-lint\eslint.config.mjs`
-6. Check `Run eslint --fix on save` at the bottom
+2. Select `Manual ESLint configuration`
+3. In `ESLint package`, select path `{project-path}\node_modules\eslint`
+4. In `Working directories`, select your project path
+5. In `Configuration File`, select path `{project-path}\node_modules\.cache\rhine-lint\eslint.config.mjs`
+6. Check `Run eslint --fix on save`
 
 ## Implementation Insights
 
