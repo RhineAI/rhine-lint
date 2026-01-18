@@ -6,6 +6,10 @@ out
 dist
 *.tgz
 
+# lint config
+eslint.config.mjs
+prettier.config.mjs
+
 # code coverage
 coverage
 *.lcov
