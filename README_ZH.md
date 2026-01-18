@@ -484,10 +484,12 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 
 1. 运行`rl config`在缓存中生成配置文件
 2. 在项目根目录创建`prettier.config.js`并写入
+
 ```javascript
 export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 ```
 由于`JetBrains IDE`内置的Prettier保存时触发工具暂时无法指定配置文件路径。我们需要主动指向 rhine-lint 缓存区的配置文件。
+
 3. 打开 `Languages & Frameworks` → `JavaScript` → `Prettier`
 4. 选择 `Manual ESLint configuration`
 5. `Prettier package`中选择路径`{项目路径}\node_modules\prettier`

@@ -482,10 +482,12 @@ Since VS Code's Prettier extension cannot directly specify config file path in c
 
 1. Run `rl config` to generate config files in cache
 2. Create `prettier.config.js` in project root and write:
+
 ```javascript
 export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 ```
 Since `JetBrains IDE`'s built-in Prettier save trigger tool cannot specify config file path yet, we need to manually point to rhine-lint's cache config file.
+
 3. Open `Languages & Frameworks` → `JavaScript` → `Prettier`
 4. Select `Manual Prettier configuration`
 5. In `Prettier package`, select path `{project-path}\node_modules\prettier`
