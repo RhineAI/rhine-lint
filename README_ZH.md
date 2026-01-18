@@ -474,8 +474,6 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
-通过 File Watchers 实现保存时自动修复。需要创建一个为触发 Prettier 命令的文件监听器。
-
 #### 步骤零：准备工作
 1. 确保已安装RhineLint，命令`bun add -D rhine-lint`
 2. 运行`rl init`初始化 并配置你需要的规则 (可选)
