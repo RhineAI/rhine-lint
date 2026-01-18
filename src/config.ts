@@ -115,6 +115,13 @@ export type Config = {
          * @default false
          */
         overlay?: boolean,
+        /**
+         * Copy the generated ESLint config file to the specified path.
+         * Useful for IDE integration when editors cannot detect config files in cache directories.
+         * Path can be absolute or relative to the project root.
+         * @example './eslint.config.mjs'
+         */
+        copyConfigFileTo?: string,
     },
     /**
      * Prettier configuration options.
@@ -148,5 +155,12 @@ export type Config = {
          * @default false
          */
         overlay?: boolean,
+        /**
+         * Copy the generated Prettier config file to the specified path.
+         * Useful for IDE integration when editors cannot detect config files in cache directories.
+         * Path can be absolute or relative to the project root.
+         * @example './prettier.config.mjs'
+         */
+        copyConfigFileTo?: string,
     }
 }
