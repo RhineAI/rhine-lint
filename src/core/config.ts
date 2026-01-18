@@ -1,4 +1,3 @@
-import { defu } from "defu";
 import { createJiti } from "jiti";
 import path from "node:path";
 import fs from "fs-extra";
@@ -419,6 +418,8 @@ export async function generateTempConfig(
     const isPrettierOverlay = userConfigResult.config.prettier?.overlay ?? false;
 
     const eslintContent = `// prettier-ignore-file
+/* eslint-disable */
+
 /**
  * ⚠️ AUTO-GENERATED FILE - DO NOT EDIT MANUALLY ⚠️
  *
@@ -428,8 +429,6 @@ export async function generateTempConfig(
  * To customize ESLint rules, please edit your rhine-lint.config file.
  * @see https://github.com/RhineAI/rhine-lint
  */
-
-/* eslint-disable */
 
 import { createJiti } from "${jitiUrl}";
 import { fileURLToPath } from "node:url";
@@ -493,6 +492,8 @@ export default finalConfig;
 `;
 
     const prettierContent = `// prettier-ignore-file
+/* eslint-disable */
+
 /**
  * ⚠️ AUTO-GENERATED FILE - DO NOT EDIT MANUALLY ⚠️
  *
@@ -502,8 +503,6 @@ export default finalConfig;
  * To customize Prettier options, please edit your rhine-lint.config file.
  * @see https://github.com/RhineAI/rhine-lint
  */
-
-/* eslint-disable */
 
 import { createJiti } from "${jitiUrl}";
 import defaultOne from "${defaultPrettierPath}";

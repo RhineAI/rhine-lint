@@ -116,6 +116,9 @@ After installation, you can use the `rl` command directly:
 # Initialize configuration interactively
 rl init
 
+# Generate config files (force regenerate, ignore cache)
+rl config
+
 # Check version
 rl --version
 
@@ -194,6 +197,10 @@ export default {
     // Set to false to disable ESLint checking
     enable: true,
 
+    // Copy generated config to project root for IDE integration (optional)
+    // Useful when your IDE cannot detect configs in cache directory
+    copyConfigFileTo: './eslint.config.mjs',
+
     // Custom ESLint rules (Flat Config format)
     // These configurations are merged with defaults
     config: [
@@ -212,6 +219,9 @@ export default {
     // Enable Prettier (default is true)
     // Set to false to disable Prettier format checking
     enable: true,
+
+    // Copy generated config to project root for IDE integration (optional)
+    copyConfigFileTo: './prettier.config.mjs',
 
     config: {
       printWidth: 100,

@@ -116,6 +116,9 @@ RL Run rl --fix to auto-fix issues.
 # 交互式初始化配置
 rl init
 
+# 生成配置文件（强制重新生成，忽略缓存）
+rl config
+
 # 查看版本
 rl --version
 
@@ -194,6 +197,10 @@ export default {
     // 设为 false 可禁用 ESLint 检查
     enable: true,
 
+    // 将生成的配置文件复制到项目根目录，便于 IDE 集成 (可选)
+    // 当 IDE 无法识别缓存目录中的配置文件时很有用
+    copyConfigFileTo: './eslint.config.mjs',
+
     // 自定义 ESLint 规则 (Flat Config 格式)
     // 这里的配置会与默认配置合并
     config: [
@@ -212,6 +219,9 @@ export default {
     // 是否启用 Prettier (默认为 true)
     // 设为 false 可禁用 Prettier 格式检查
     enable: true,
+
+    // 将生成的配置文件复制到项目根目录，便于 IDE 集成 (可选)
+    copyConfigFileTo: './prettier.config.mjs',
 
     config: {
       printWidth: 100,

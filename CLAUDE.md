@@ -12,6 +12,9 @@ Rhine Lint is a zero-config linting solution that wraps ESLint (v9 Flat Config) 
 # Initialize config interactively
 rl init
 
+# Generate config files (force regenerate, ignore cache)
+rl config
+
 # Lint files (default: current directory)
 rl [files...]
 
@@ -45,8 +48,9 @@ node dist/cli.js [command] [options]
 
 ### Core Flow: Init → Generate → Execute
 
-1. **CLI Entry** (`src/cli.ts`): Parses arguments using `cac`, handles two commands:
+1. **CLI Entry** (`src/cli.ts`): Parses arguments using `cac`, handles three commands:
    - `rl init` - Generates a config file based on detected project features
+   - `rl config` - Forces regeneration of ESLint and Prettier config files (ignores cache)
    - `rl [...files]` - Main linting command
 
 2. **Config Loading** (`src/core/config.ts`):
@@ -58,6 +62,8 @@ node dist/cli.js [command] [options]
    - Generates temporary `eslint.config.mjs` and `prettier.config.mjs` in cache directory
    - Cache location: `node_modules/.cache/rhine-lint/` or `.cache/rhine-lint/`
    - Merges user config with built-in defaults using `defu`
+   - Supports `copyConfigFileTo` option to copy generated configs to project root for IDE integration
+   - Generated configs include warning comments (`// prettier-ignore-file`, `/* eslint-disable */`)
 
 4. **Execution** (`src/core/runner.ts`):
    - Spawns ESLint and Prettier as child processes (not API calls)
@@ -129,9 +135,36 @@ The `rl init` command generates config with this property order:
 3. `projectTypeCheck` - Project-based type checking (only if TypeScript enabled)
 4. `ignores` - Ignore patterns
 5. `eslint` - ESLint configuration
+   - `enable` - Enable/disable ESLint
+   - `config` - Custom ESLint rules
+   - `overlay` - Replace default rules instead of merging
+   - `copyConfigFileTo` - Copy generated config to specified path (e.g., `'./eslint.config.mjs'`)
 6. `prettier` - Prettier configuration
+   - `enable` - Enable/disable Prettier
+   - `config` - Custom Prettier options
+   - `overlay` - Replace default options instead of merging
+   - `copyConfigFileTo` - Copy generated config to specified path (e.g., `'./prettier.config.mjs'`)
 
 Note: `fix` mode is controlled exclusively via CLI `--fix` flag, not in config file.
+
+### copyConfigFileTo Feature
+
+The `copyConfigFileTo` option allows you to copy generated config files to your project root for IDE integration:
+
+```typescript
+export default {
+  eslint: {
+    copyConfigFileTo: './eslint.config.mjs',
+  },
+  prettier: {
+    copyConfigFileTo: './prettier.config.mjs',
+  },
+}
+```
+
+- Configs are copied after generation (both on cache hit and regeneration)
+- Copied files include warning comments to indicate they are auto-generated
+- Use `rl config` command to force regenerate and copy configs
 
 ## Test
 修改或完成新功能后，请测试自己的代码正常。通过`bun run build`构建，并在`playground`目录的项目中验证。
