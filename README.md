@@ -113,6 +113,9 @@ RL Run rl --fix to auto-fix issues.
 After installation, you can use the `rl` command directly:
 
 ```bash
+# Initialize configuration interactively
+rl init
+
 # Check version
 rl --version
 
@@ -224,6 +227,7 @@ export default {
 CLI arguments take priority over configuration file:
 
 - `--fix`: Auto-fix errors.
+- `--no-fix`: Disable auto-fix (overrides `fix: true` in config file).
 - `--config <path>`: Specify configuration file path.
 - `--level <level>`: Force project level (`normal`, `react`, `next`).
 - `--no-typescript`: Disable TypeScript support, use JavaScript mode.

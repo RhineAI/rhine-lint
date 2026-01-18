@@ -113,6 +113,9 @@ RL Run rl --fix to auto-fix issues.
 安装完成后，你可以直接使用 `rl` 命令：
 
 ```bash
+# 交互式初始化配置
+rl init
+
 # 查看版本
 rl --version
 
@@ -224,6 +227,7 @@ export default {
 CLI 参数优先级高于配置文件：
 
 - `--fix`: 自动修复错误。
+- `--no-fix`: 禁用自动修复（覆盖配置文件中的 `fix: true`）。
 - `--config <path>`: 指定配置文件路径。
 - `--level <level>`: 强制指定项目级别（`normal`, `react`, `next`）。
 - `--no-typescript`: 禁用 TypeScript 支持，使用 JavaScript 模式。

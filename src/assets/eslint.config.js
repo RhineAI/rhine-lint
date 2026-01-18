@@ -287,6 +287,7 @@ export default function createConfig(overrides = {}) {
         '@typescript-eslint/no-unused-vars': 'off',
         '@typescript-eslint/no-empty-function': 'off',
         '@typescript-eslint/require-await': 'off',
+        '@typescript-eslint/restrict-template-expressions': 'off',
         'import-x/no-anonymous-default-export': 'error',
         'import-x/no-named-as-default': 'error',
         'import-x/no-named-as-default-member': 'off',
