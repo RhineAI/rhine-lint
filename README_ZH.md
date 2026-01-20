@@ -409,8 +409,8 @@ Rhine Lint 根据 `level` 和 `typescript` 参数加载不同的规则集。
 ### VS Code (Cursor, Antigravity, ...)
 
 #### 步骤零：准备工作
-1. 确保已安装 RhineLint，命令 `bun add -D rhine-lint`
-2. 运行 `rl init` 初始化并配置你需要的规则（可选）
+1. 确保项目已安装 RhineLint，命令 `bun add -D rhine-lint`
+2. 在项目根目录运行 `rl init` 初始化并配置你需要的规则（可选）
 
 #### 步骤一：配置保存时触发 Prettier 修复
 
@@ -475,8 +475,8 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
 #### 步骤零：准备工作
-1. 确保已安装RhineLint，命令`bun add -D rhine-lint`
-2. 运行`rl init`初始化 并配置你需要的规则 (可选)
+1. 确保项目已安装RhineLint，命令`bun add -D rhine-lint`
+2. 在项目根目录运行`rl init`初始化 并配置你需要的规则 (可选)
 
 #### 步骤一：配置保存时触发 Prettier 修复
 

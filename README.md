@@ -409,8 +409,8 @@ When `level` is not specified, Rhine Lint automatically analyzes `dependencies` 
 ### VS Code (Cursor, Antigravity, ...)
 
 #### Step 0: Preparation
-1. Make sure RhineLint is installed with command `bun add -D rhine-lint`
-2. Run `rl init` to initialize and configure your rules (optional)
+1. Make sure RhineLint is installed in the project with command `bun add -D rhine-lint`
+2. Run `rl init` in the project root directory to initialize and configure your rules (optional)
 
 #### Step 1: Configure Prettier Fix on Save
 
@@ -475,8 +475,8 @@ Since VS Code's Prettier extension cannot directly specify config file path in c
 ### JetBrains IDE (WebStorm, IDEA, PyCharm, ...)
 
 #### Step 0: Preparation
-1. Make sure RhineLint is installed with command `bun add -D rhine-lint`
-2. Run `rl init` to initialize and configure your rules (optional)
+1. Make sure RhineLint is installed in the project with command `bun add -D rhine-lint`
+2. Run `rl init` in the project root directory to initialize and configure your rules (optional)
 
 #### Step 1: Configure Prettier Fix on Save
 
