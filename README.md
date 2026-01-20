@@ -1,3 +1,5 @@
+# Rhine Lint
+
 <p align="center">
   <img src="https://img.shields.io/npm/v/rhine-lint?style=flat-square" alt="npm version" />
   <img src="https://img.shields.io/npm/l/rhine-lint?style=flat-square" alt="license" />
