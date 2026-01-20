@@ -1,4 +1,4 @@
-# Rhine Lint
+<img width="2560" height="1490" alt="image" src="https://github.com/user-attachments/assets/7e7ac961-4386-4a4d-96d1-6bd99ecfca22" /># Rhine Lint
 
 <p align="center">
   <img src="https://img.shields.io/npm/v/rhine-lint?style=flat-square" alt="npm version" />
@@ -488,7 +488,7 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 ```
 Since `JetBrains IDE`'s built-in Prettier save trigger tool cannot specify config file path yet, we need to manually point to rhine-lint's cache config file.
 
-3. Open `Languages & Frameworks` → `JavaScript` → `Prettier`
+3. Open `File` → `Settings` → `Languages & Frameworks` → `JavaScript` → `Prettier`
 4. Select `Manual Prettier configuration`
 5. In `Prettier package`, select path `{project-path}\node_modules\prettier`
 6. In `Path to .prettierignore`, you can select your `.gitignore` file
@@ -498,7 +498,7 @@ Since `JetBrains IDE`'s built-in Prettier save trigger tool cannot specify confi
 
 #### Step 2: Configure ESLint Fix on Save
 
-1. Open `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
+1. Open `File` → `Settings` → `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
 2. Select `Manual ESLint configuration`
 3. In `ESLint package`, select path `{project-path}\node_modules\eslint`
 4. In `Working directories`, select your project path
