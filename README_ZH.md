@@ -488,7 +488,7 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 ```
 由于`JetBrains IDE`内置的Prettier保存时触发工具暂时无法指定配置文件路径。我们需要主动指向 rhine-lint 缓存区的配置文件。
 
-3. 打开 `Languages & Frameworks` → `JavaScript` → `Prettier`
+3. 打开 左上角`File` → `Settings` → `Languages & Frameworks` → `JavaScript` → `Prettier`
 4. 选择 `Manual ESLint configuration`
 5. `Prettier package`中选择路径`{项目路径}\node_modules\prettier`
 6. `Path to .prettierignore`中可以选择你的`.gitignore`文件
@@ -498,7 +498,7 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 
 #### 步骤二：配置保存时触发 ESLint 修复
 
-1. 打开 `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
+1. 打开 左上角`File` → `Settings` → `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
 2. 选择 `Manual ESLint configuration`
 3. `ESLint package` 中选择路径 `{项目路径}\node_modules\eslint`
 4. Working directories 中选择你的项目路径
