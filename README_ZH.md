@@ -501,8 +501,8 @@ export { default } from './node_modules/.cache/rhine-lint/prettier.config.mjs'
 1. 打开 左上角`File` → `Settings` → `Languages & Frameworks` → `JavaScript` → `Code Quality Tools` → `ESLint`
 2. 选择 `Manual ESLint configuration`
 3. `ESLint package` 中选择路径 `{项目路径}\node_modules\eslint`
-4. Working directories 中选择你的项目路径
-5. Configuration File 中选择路径 `{项目路径}\node_modules\.cache\rhine-lint\eslint.config.mjs`
+4. `Working directories` 中选择你的项目路径
+5. `Configuration File` 中选择路径 `{项目路径}\node_modules\.cache\rhine-lint\eslint.config.mjs`
 6. 勾选 `Run eslint --fix on save`
 
 ## 技术实现与原理 Implementation Insights
